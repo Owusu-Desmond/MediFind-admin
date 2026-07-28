@@ -30,6 +30,10 @@ export interface Pharmacy {
   phone: string;
   email: string;
   dateSubmitted: string;
+  deliveryOffered: boolean;
+  openingHours: string;
+  lat: number | null;
+  lng: number | null;
 }
 
 export function transformPharmacy(bp: BackendPharmacy): Pharmacy {
@@ -44,6 +48,10 @@ export function transformPharmacy(bp: BackendPharmacy): Pharmacy {
     phone: bp.phone || "",
     email: bp.email || "",
     dateSubmitted: bp.date_submitted ? new Date(bp.date_submitted).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+    deliveryOffered: bp.delivery_offered ?? false,
+    openingHours: bp.opening_hours || "",
+    lat: bp.lat ?? null,
+    lng: bp.lng ?? null,
   };
 }
 
@@ -111,7 +119,10 @@ export const addPharmacy = createAsyncThunk(
         pharmacist_id: pharmacyData.pharmacistId,
         phone: pharmacyData.phone,
         email: pharmacyData.email,
-        delivery_offered: true,
+        delivery_offered: pharmacyData.deliveryOffered,
+        opening_hours: pharmacyData.openingHours,
+        lat: pharmacyData.lat,
+        lng: pharmacyData.lng,
       };
       const newPh = await apiClient<BackendPharmacy>("/api/pharmacies/", {
         method: "POST",
