@@ -2,7 +2,9 @@
 
 import React from "react";
 import Link from "next/link";
-import { useAdmin } from "@/context/AdminContext";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { approvePharmacy, suspendPharmacy } from "@/store/slices/pharmaciesSlice";
+import { addNotification } from "@/store/slices/notificationsSlice";
 import {
   Building2,
   Users,
@@ -12,11 +14,13 @@ import {
   ArrowRight,
   Check,
   X,
-  TrendingUp,
 } from "lucide-react";
 
 export default function AdminDashboardPage() {
-  const { pharmacies, users, approvePharmacy, suspendPharmacy } = useAdmin();
+  const dispatch = useAppDispatch();
+  const pharmacies = useAppSelector((state) => state.pharmacies.items);
+  const users = useAppSelector((state) => state.users.items);
+  const pharmaciesLoading = useAppSelector((state) => state.pharmacies.loading);
 
   const approvedCount = pharmacies.filter((p) => p.status === "Approved").length;
   const pendingCount = pharmacies.filter((p) => p.status === "Pending Approval").length;
@@ -24,6 +28,28 @@ export default function AdminDashboardPage() {
   const activeUsers = users.filter((u) => u.status === "Active").length;
 
   const pendingPharmacies = pharmacies.filter((p) => p.status === "Pending Approval");
+
+  const handleApprove = (id: string, name: string) => {
+    dispatch(approvePharmacy(id));
+    dispatch(
+      addNotification({
+        title: "Pharmacy Approved",
+        message: `${name} has been verified and registered on the network.`,
+        type: "success",
+      })
+    );
+  };
+
+  const handleSuspend = (id: string, name: string) => {
+    dispatch(suspendPharmacy(id));
+    dispatch(
+      addNotification({
+        title: "Pharmacy Suspended",
+        message: `${name} status was updated to Suspended.`,
+        type: "warning",
+      })
+    );
+  };
 
   // Weekly chart mock data
   const chartData = [
@@ -41,6 +67,8 @@ export default function AdminDashboardPage() {
   const pad = 30;
   const barW = 18;
   const spacing = (chartW - pad * 2) / chartData.length;
+
+  const totalPh = pharmacies.length || 1;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
@@ -187,9 +215,9 @@ export default function AdminDashboardPage() {
 
             {/* Progress bar */}
             <div className="mt-3 w-full h-2 bg-slate-100 rounded-full overflow-hidden flex">
-              <div className="bg-teal-500 h-full" style={{ width: `${(approvedCount / pharmacies.length) * 100}%` }} />
-              <div className="bg-amber-400 h-full" style={{ width: `${(pendingCount / pharmacies.length) * 100}%` }} />
-              <div className="bg-rose-500 h-full" style={{ width: `${(suspendedCount / pharmacies.length) * 100}%` }} />
+              <div className="bg-teal-500 h-full" style={{ width: `${(approvedCount / totalPh) * 100}%` }} />
+              <div className="bg-amber-400 h-full" style={{ width: `${(pendingCount / totalPh) * 100}%` }} />
+              <div className="bg-rose-500 h-full" style={{ width: `${(suspendedCount / totalPh) * 100}%` }} />
             </div>
             <p className="text-[10px] text-slate-400 font-semibold text-center">
               {pharmacies.length} total registered branches
@@ -210,7 +238,12 @@ export default function AdminDashboardPage() {
           </Link>
         </div>
 
-        {pendingPharmacies.length === 0 ? (
+        {pharmaciesLoading ? (
+          <div className="text-center py-12 flex flex-col items-center gap-2 text-slate-400">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm font-semibold">Loading data from backend...</p>
+          </div>
+        ) : pendingPharmacies.length === 0 ? (
           <div className="text-center py-12 flex flex-col items-center gap-2 text-slate-400">
             <CheckCircle size={32} className="text-emerald-400 stroke-[1.5]" />
             <p className="text-sm font-semibold">All applications are resolved!</p>
@@ -240,7 +273,7 @@ export default function AdminDashboardPage() {
                     <td className="py-4 px-4">
                       <div className="flex items-center justify-center gap-2">
                         <button
-                          onClick={() => approvePharmacy(phr.id)}
+                          onClick={() => handleApprove(phr.id, phr.name)}
                           title="Approve"
                           className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all border border-emerald-100"
                         >
@@ -254,7 +287,7 @@ export default function AdminDashboardPage() {
                           →
                         </Link>
                         <button
-                          onClick={() => suspendPharmacy(phr.id)}
+                          onClick={() => handleSuspend(phr.id, phr.name)}
                           title="Reject / Suspend"
                           className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white flex items-center justify-center transition-all border border-rose-100"
                         >

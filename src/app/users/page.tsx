@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { useAdmin, UserAccount } from "@/context/AdminContext";
-import { Plus, Search, Edit2, Trash2, X, AlertTriangle, UserCircle } from "lucide-react";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { updateUserStatus, UserAccount } from "@/store/slices/usersSlice";
+import { Plus, Search, Edit2, Trash2, X, AlertTriangle } from "lucide-react";
 
 export default function UsersPage() {
-  const { users, addUser, updateUser, deleteUser } = useAdmin();
+  const dispatch = useAppDispatch();
+  const users = useAppSelector((state) => state.users.items);
+  const loading = useAppSelector((state) => state.users.loading);
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");
@@ -46,16 +49,16 @@ export default function UsersPage() {
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    addUser(formData);
     setShowAddModal(false);
   };
   const handleEdit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (currentUser) updateUser(currentUser.id, formData);
+    if (currentUser && currentUser.status !== formData.status) {
+      dispatch(updateUserStatus({ id: currentUser.id, status: formData.status }));
+    }
     setShowEditModal(false);
   };
   const handleDelete = () => {
-    if (currentUser) deleteUser(currentUser.id);
     setShowDeleteModal(false);
   };
 
@@ -153,7 +156,9 @@ export default function UsersPage() {
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {loading ? (
+              <tr><td colSpan={5} className="py-16 text-center text-sm text-slate-400 font-semibold">Loading users from backend...</td></tr>
+            ) : filtered.length === 0 ? (
               <tr><td colSpan={5} className="py-16 text-center text-sm text-slate-400 font-semibold">No users found matching your criteria.</td></tr>
             ) : (
               filtered.map((u) => (

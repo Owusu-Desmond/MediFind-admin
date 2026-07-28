@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAdmin } from "@/context/AdminContext";
+import { useSession, signOut } from "next-auth/react";
 import {
   LayoutDashboard,
   Users,
@@ -14,13 +14,16 @@ import {
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { logout, admin } = useAdmin();
+  const { data: session } = useSession();
 
   const navItems = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { name: "User Management", href: "/users", icon: Users },
     { name: "Pharmacy Registry", href: "/pharmacies", icon: Building2 },
   ];
+
+  const adminName = session?.user?.name || "MediFind Admin";
+  const adminEmail = session?.user?.email || "admin@medifind.com";
 
   return (
     <aside className="w-64 bg-slate-900 text-white flex flex-col min-h-screen border-r border-slate-800 shadow-xl select-none">
@@ -66,15 +69,15 @@ export default function Sidebar() {
       <div className="p-4 border-t border-slate-800">
         <div className="flex items-center gap-3 mb-4 px-2">
           <div className="w-8 h-8 rounded-full bg-teal-500/20 border border-teal-500/30 flex items-center justify-center text-teal-400 font-bold text-sm">
-            {admin?.name?.charAt(0) ?? "A"}
+            {adminName.charAt(0)}
           </div>
           <div className="overflow-hidden">
-            <p className="text-xs font-bold text-slate-300 truncate">{admin?.name ?? "Admin"}</p>
-            <p className="text-[11px] text-slate-500 truncate">{admin?.email}</p>
+            <p className="text-xs font-bold text-slate-300 truncate">{adminName}</p>
+            <p className="text-[11px] text-slate-500 truncate">{adminEmail}</p>
           </div>
         </div>
         <button
-          onClick={logout}
+          onClick={() => signOut({ callbackUrl: "/" })}
           className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-400 hover:bg-red-950/30 hover:text-red-400 border border-transparent hover:border-red-900/30 transition-all duration-200"
         >
           <LogOut size={16} />

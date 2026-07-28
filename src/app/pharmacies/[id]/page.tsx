@@ -3,7 +3,9 @@
 import React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useAdmin } from "@/context/AdminContext";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { approvePharmacy, suspendPharmacy } from "@/store/slices/pharmaciesSlice";
+import { addNotification } from "@/store/slices/notificationsSlice";
 import {
   ArrowLeft,
   Building2,
@@ -21,7 +23,8 @@ import {
 
 export default function PharmacyApprovalPage() {
   const params = useParams();
-  const { pharmacies, approvePharmacy, suspendPharmacy } = useAdmin();
+  const dispatch = useAppDispatch();
+  const pharmacies = useAppSelector((state) => state.pharmacies.items);
   const id = params.id as string;
   const pharmacy = pharmacies.find((p) => p.id === id);
 
@@ -35,6 +38,28 @@ export default function PharmacyApprovalPage() {
       </div>
     );
   }
+
+  const handleApprove = () => {
+    dispatch(approvePharmacy(pharmacy.id));
+    dispatch(
+      addNotification({
+        title: "Pharmacy Approved",
+        message: `${pharmacy.name} has been verified and approved.`,
+        type: "success",
+      })
+    );
+  };
+
+  const handleSuspend = () => {
+    dispatch(suspendPharmacy(pharmacy.id));
+    dispatch(
+      addNotification({
+        title: "Pharmacy Suspended",
+        message: `${pharmacy.name} status updated to Suspended.`,
+        type: "warning",
+      })
+    );
+  };
 
   const statusConfig = {
     "Approved": {
@@ -116,7 +141,7 @@ export default function PharmacyApprovalPage() {
             </div>
           </div>
 
-          {/* Mock Certificate Upload Display */}
+          {/* Documentation Display */}
           <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
             <h3 className="font-extrabold text-slate-800 text-sm border-b border-slate-100 pb-3">Submitted Documentation</h3>
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-4">
@@ -172,13 +197,13 @@ export default function PharmacyApprovalPage() {
             {pharmacy.status === "Pending Approval" && (
               <div className="space-y-3">
                 <button
-                  onClick={() => approvePharmacy(pharmacy.id)}
+                  onClick={handleApprove}
                   className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm shadow-md shadow-emerald-700/20 transition-all"
                 >
                   <ShieldCheck size={16} /> Approve & Activate Branch
                 </button>
                 <button
-                  onClick={() => suspendPharmacy(pharmacy.id)}
+                  onClick={handleSuspend}
                   className="w-full flex items-center justify-center gap-2 border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold py-3 rounded-xl text-sm transition-all"
                 >
                   <ShieldX size={16} /> Reject Application
@@ -192,7 +217,7 @@ export default function PharmacyApprovalPage() {
                   <CheckCircle size={16} className="shrink-0" /> This pharmacy is active on the MediFind network.
                 </div>
                 <button
-                  onClick={() => suspendPharmacy(pharmacy.id)}
+                  onClick={handleSuspend}
                   className="w-full flex items-center justify-center gap-2 border border-amber-200 text-amber-700 hover:bg-amber-50 font-bold py-3 rounded-xl text-sm transition-all"
                 >
                   <Ban size={16} /> Suspend This Branch
@@ -206,7 +231,7 @@ export default function PharmacyApprovalPage() {
                   <Ban size={16} className="shrink-0" /> This pharmacy is currently suspended.
                 </div>
                 <button
-                  onClick={() => approvePharmacy(pharmacy.id)}
+                  onClick={handleApprove}
                   className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-teal-800 text-white font-bold py-3 rounded-xl text-sm shadow-md shadow-teal-700/20 transition-all"
                 >
                   <ShieldCheck size={16} /> Reinstate Branch

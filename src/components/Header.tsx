@@ -1,13 +1,19 @@
 "use client";
 
 import React, { useState } from "react";
-import { useAdmin } from "@/context/AdminContext";
+import { useSession } from "next-auth/react";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { markNotificationRead } from "@/store/slices/notificationsSlice";
 import { Bell, Check, Search } from "lucide-react";
 
 export default function Header() {
-  const { admin, notifications, markNotificationRead } = useAdmin();
+  const { data: session } = useSession();
+  const dispatch = useAppDispatch();
+  const notifications = useAppSelector((state) => state.notifications.items);
   const [showNotifications, setShowNotifications] = useState(false);
+
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const adminName = session?.user?.name || "System Admin";
 
   return (
     <header className="h-20 bg-white border-b border-slate-200/80 px-8 flex items-center justify-between sticky top-0 z-30 shadow-sm">
@@ -64,7 +70,7 @@ export default function Header() {
                       </div>
                       {!n.read && (
                         <button
-                          onClick={() => markNotificationRead(n.id)}
+                          onClick={() => dispatch(markNotificationRead(n.id))}
                           className="w-5 h-5 rounded-full hover:bg-slate-200 flex items-center justify-center text-primary shrink-0 self-center"
                         >
                           <Check size={13} className="stroke-[2.5]" />
@@ -83,11 +89,13 @@ export default function Header() {
         {/* Admin Avatar */}
         <div className="flex items-center gap-3">
           <div className="text-right">
-            <p className="text-sm font-bold text-slate-800">{admin?.name?.split(" ")[0]}</p>
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">System Admin</span>
+            <p className="text-sm font-bold text-slate-800">{adminName.split(" ")[0]}</p>
+            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+              {session?.user?.role || "System Admin"}
+            </span>
           </div>
           <div className="w-10 h-10 rounded-xl bg-slate-900 text-teal-400 flex items-center justify-center font-bold text-md border border-slate-800 shadow-inner">
-            {admin?.name?.charAt(0) ?? "A"}
+            {adminName.charAt(0)}
           </div>
         </div>
       </div>

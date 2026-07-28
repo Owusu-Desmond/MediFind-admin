@@ -2,11 +2,15 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useAdmin, Pharmacy } from "@/context/AdminContext";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { approvePharmacy, suspendPharmacy, addPharmacy, Pharmacy } from "@/store/slices/pharmaciesSlice";
+import { addNotification } from "@/store/slices/notificationsSlice";
 import { Plus, Search, Edit2, Trash2, X, Eye, AlertTriangle, Check, Ban } from "lucide-react";
 
 export default function PharmaciesPage() {
-  const { pharmacies, addPharmacy, updatePharmacy, deletePharmacy, approvePharmacy, suspendPharmacy } = useAdmin();
+  const dispatch = useAppDispatch();
+  const pharmacies = useAppSelector((state) => state.pharmacies.items);
+  const loading = useAppSelector((state) => state.pharmacies.loading);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -41,9 +45,49 @@ export default function PharmaciesPage() {
   };
   const openDelete = (p: Pharmacy) => { setCurrent(p); setShowDeleteModal(true); };
 
-  const handleAdd = (e: React.FormEvent) => { e.preventDefault(); addPharmacy(formData); setShowAddModal(false); };
-  const handleEdit = (e: React.FormEvent) => { e.preventDefault(); if (current) updatePharmacy(current.id, formData); setShowEditModal(false); };
-  const handleDelete = () => { if (current) deletePharmacy(current.id); setShowDeleteModal(false); };
+  const handleAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    dispatch(addPharmacy(formData));
+    dispatch(
+      addNotification({
+        title: "New Registration",
+        message: `${formData.name} registration request has been submitted.`,
+        type: "info",
+      })
+    );
+    setShowAddModal(false);
+  };
+
+  const handleEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setShowEditModal(false);
+  };
+
+  const handleDelete = () => {
+    setShowDeleteModal(false);
+  };
+
+  const handleApprove = (p: Pharmacy) => {
+    dispatch(approvePharmacy(p.id));
+    dispatch(
+      addNotification({
+        title: "Pharmacy Approved",
+        message: `${p.name} has been verified and approved.`,
+        type: "success",
+      })
+    );
+  };
+
+  const handleSuspend = (p: Pharmacy) => {
+    dispatch(suspendPharmacy(p.id));
+    dispatch(
+      addNotification({
+        title: "Pharmacy Suspended",
+        message: `${p.name} has been suspended from the network.`,
+        type: "warning",
+      })
+    );
+  };
 
   const statusBadge = (status: Pharmacy["status"]) => {
     if (status === "Approved") return "bg-emerald-50 text-emerald-700 border-emerald-100";
@@ -52,7 +96,7 @@ export default function PharmaciesPage() {
   };
 
   const PharmacyForm = ({ title, onSubmit, onClose }: { title: string; onSubmit: (e: React.FormEvent) => void; onClose: () => void }) => (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-[-50px] bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center">
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
           <h3 className="font-extrabold text-slate-800">{title}</h3>
@@ -150,7 +194,9 @@ export default function PharmaciesPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {loading ? (
+                <tr><td colSpan={6} className="py-16 text-center text-sm text-slate-400 font-semibold">Loading backend data...</td></tr>
+              ) : filtered.length === 0 ? (
                 <tr><td colSpan={6} className="py-16 text-center text-sm text-slate-400 font-semibold">No pharmacies found.</td></tr>
               ) : (
                 filtered.map((p) => (
@@ -172,13 +218,13 @@ export default function PharmaciesPage() {
                           <Eye size={14} />
                         </Link>
                         {p.status === "Pending Approval" && (
-                          <button onClick={() => approvePharmacy(p.id)} title="Approve"
+                          <button onClick={() => handleApprove(p)} title="Approve"
                             className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white flex items-center justify-center border border-emerald-100 transition-all">
                             <Check size={14} className="stroke-[2.5]" />
                           </button>
                         )}
                         {p.status === "Approved" && (
-                          <button onClick={() => suspendPharmacy(p.id)} title="Suspend"
+                          <button onClick={() => handleSuspend(p)} title="Suspend"
                             className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white flex items-center justify-center border border-amber-100 transition-all">
                             <Ban size={14} />
                           </button>

@@ -2,27 +2,42 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAdmin } from "@/context/AdminContext";
+import { signIn } from "next-auth/react";
 import { ShieldCheck, Mail, Lock, ArrowRight } from "lucide-react";
 
 export default function AdminLoginPage() {
-  const { login } = useAdmin();
   const router = useRouter();
   const [email, setEmail] = useState("justice.admin@medifind.com");
   const [password, setPassword] = useState("admin123");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!email || !password) { setError("All fields are required."); return; }
+    if (!email || !password) {
+      setError("All fields are required.");
+      return;
+    }
     setLoading(true);
-    setTimeout(() => {
-      login(email);
+
+    try {
+      const res = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (res?.error) {
+        setError(res.error || "Invalid email or password");
+        setLoading(false);
+      } else if (res?.ok) {
+        router.push("/dashboard");
+      }
+    } catch (err: any) {
+      setError(err.message || "An unexpected error occurred.");
       setLoading(false);
-      router.push("/dashboard");
-    }, 1000);
+    }
   };
 
   return (
