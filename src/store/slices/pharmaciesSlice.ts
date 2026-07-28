@@ -18,6 +18,14 @@ export interface BackendPharmacy {
   lng?: number | null;
   verified?: boolean;
   certificate_url?: string | null;
+  paystack_subaccount_code?: string | null;
+  paystack_subaccount_status?: string | null;
+  payment_account_type?: string | null;
+  bank_name?: string | null;
+  account_name?: string | null;
+  account_number?: string | null;
+  mobile_money_provider?: string | null;
+  payment_account_verified?: boolean;
 }
 
 export interface Pharmacy {
@@ -36,9 +44,22 @@ export interface Pharmacy {
   lat: number | null;
   lng: number | null;
   certificateUrl?: string | null;
+  paystackSubaccountCode?: string | null;
+  paystackSubaccountStatus?: string | null;
+  paymentAccountType?: string | null;
+  bankName?: string | null;
+  accountName?: string | null;
+  accountNumber?: string | null;
+  mobileMoneyProvider?: string | null;
+  paymentAccountVerified?: boolean;
 }
 
 export function transformPharmacy(bp: BackendPharmacy): Pharmacy {
+  let maskedAccount = bp.account_number || null;
+  if (maskedAccount && maskedAccount.length > 4) {
+    maskedAccount = `${maskedAccount.slice(0, 3)}****${maskedAccount.slice(-3)}`;
+  }
+
   return {
     id: bp.id.toString(),
     name: bp.name,
@@ -55,8 +76,17 @@ export function transformPharmacy(bp: BackendPharmacy): Pharmacy {
     lat: bp.lat ?? null,
     lng: bp.lng ?? null,
     certificateUrl: bp.certificate_url || null,
+    paystackSubaccountCode: bp.paystack_subaccount_code || null,
+    paystackSubaccountStatus: bp.paystack_subaccount_status || "PENDING",
+    paymentAccountType: bp.payment_account_type || null,
+    bankName: bp.bank_name || null,
+    accountName: bp.account_name || null,
+    accountNumber: maskedAccount,
+    mobileMoneyProvider: bp.mobile_money_provider || null,
+    paymentAccountVerified: bp.payment_account_verified ?? false,
   };
 }
+
 
 interface PharmaciesState {
   items: Pharmacy[];

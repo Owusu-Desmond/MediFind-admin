@@ -206,8 +206,8 @@ export default function PharmacyAdmin() {
       await dispatch(approvePharmacy(p.id)).unwrap();
       dispatch(
         addNotification({
-          title: "Pharmacy Approved",
-          message: `${p.name} verified and granted platform access.`,
+          title: "Pharmacy Approved & Staff Created",
+          message: `${p.name} verified. Staff account created & approval email with login link sent to ${p.email}.`,
           type: "success",
         })
       );
@@ -305,6 +305,7 @@ export default function PharmacyAdmin() {
                 <th className="py-4 px-6">Pharmacy Branch</th>
                 <th className="py-4 px-6">License No.</th>
                 <th className="py-4 px-6">Pharmacist</th>
+                <th className="py-4 px-6">Paystack Payout</th>
                 <th className="py-4 px-6">Status</th>
                 <th className="py-4 px-6">Submitted</th>
                 <th className="py-4 px-6 text-center">Actions</th>
@@ -313,13 +314,13 @@ export default function PharmacyAdmin() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center text-sm text-slate-400 font-semibold">
+                  <td colSpan={7} className="py-16 text-center text-sm text-slate-400 font-semibold">
                     Loading backend data...
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center text-sm text-slate-400 font-semibold">
+                  <td colSpan={7} className="py-16 text-center text-sm text-slate-400 font-semibold">
                     No pharmacies found.
                   </td>
                 </tr>
@@ -335,6 +336,22 @@ export default function PharmacyAdmin() {
                     </td>
                     <td className="py-4 px-6 font-mono text-xs text-slate-600">{p.licenseNumber}</td>
                     <td className="py-4 px-6 font-semibold text-slate-600">{p.pharmacistName}</td>
+                    <td className="py-4 px-6">
+                      {p.paystackSubaccountCode ? (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 w-fit">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Active
+                          </span>
+                          <span className="font-mono text-[10px] text-slate-400 truncate max-w-28">
+                            {p.paystackSubaccountCode}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">
+                          Not Setup
+                        </span>
+                      )}
+                    </td>
                     <td className="py-4 px-6">
                       <span
                         className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusBadge(p.status)}`}

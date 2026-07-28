@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { useAppDispatch } from "@/store/hooks";
 import { fetchPharmacies } from "@/store/slices/pharmaciesSlice";
 import { fetchUsers } from "@/store/slices/usersSlice";
+import { setApiToken } from "@/store/apiClient";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { ShieldCheck } from "lucide-react";
@@ -34,13 +35,16 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     }
   }, [status, pathname, router, mounted, isAuthRoute]);
 
-  // Fetch initial data when authenticated
+  // Set token in cache and fetch initial data when authenticated
   useEffect(() => {
-    if (status === "authenticated") {
+    if (status === "authenticated" && session?.accessToken) {
+      setApiToken(session.accessToken as string);
       dispatch(fetchPharmacies());
       dispatch(fetchUsers());
+    } else if (status === "unauthenticated") {
+      setApiToken(null);
     }
-  }, [status, dispatch]);
+  }, [status, session, dispatch]);
 
   if (!mounted || status === "loading") {
     return (

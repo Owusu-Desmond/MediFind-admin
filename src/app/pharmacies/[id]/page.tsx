@@ -197,6 +197,7 @@ export default function PharmacyApprovalPage() {
           </div>
 
           {/* Documentation Display */}
+          {/* Submitted Documentation */}
           <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
             <h3 className="font-extrabold text-slate-800 text-sm border-b border-slate-100 pb-3">Submitted Documentation</h3>
             {pharmacy.certificateUrl ? (
@@ -232,6 +233,53 @@ export default function PharmacyApprovalPage() {
                 </span>
               </div>
             )}
+          </div>
+
+          {/* Payout & Paystack Subaccount Details */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-extrabold text-slate-800 text-sm">Paystack & Payout Configuration</h3>
+              <span
+                className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                  pharmacy.paystackSubaccountCode
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    : "bg-amber-50 text-amber-700 border-amber-200"
+                }`}
+              >
+                {pharmacy.paystackSubaccountCode ? "Paystack Active" : "No Subaccount"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <span className="text-slate-400 block mb-1">Subaccount Code</span>
+                <span className="font-mono font-bold text-slate-700">
+                  {pharmacy.paystackSubaccountCode || "Not Generated"}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <span className="text-slate-400 block mb-1">Payout Account Type</span>
+                <span className="font-bold text-slate-700 capitalize">
+                  {pharmacy.paymentAccountType || "Not configured"}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <span className="text-slate-400 block mb-1">
+                  {pharmacy.paymentAccountType === "mobile_money" ? "MoMo Provider" : "Bank Name"}
+                </span>
+                <span className="font-bold text-slate-700">
+                  {pharmacy.paymentAccountType === "mobile_money"
+                    ? pharmacy.mobileMoneyProvider?.toUpperCase() || "—"
+                    : pharmacy.bankName || "—"}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <span className="text-slate-400 block mb-1">Account Name & Number</span>
+                <span className="font-bold text-slate-700">
+                  {pharmacy.accountName ? `${pharmacy.accountName} (${pharmacy.accountNumber || "—"})` : "—"}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 

@@ -2,12 +2,23 @@ import { getSession } from "next-auth/react";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
+// Cache the token so we don't call getSession() on every request
+let cachedToken: string | null = null;
+
+export function setApiToken(token: string | null) {
+  cachedToken = token;
+}
+
 export async function apiClient<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const session = await getSession();
-  const token = session?.accessToken;
+  // First try cached token (set explicitly on login), then fall back to getSession()
+  let token = cachedToken;
+  if (!token) {
+    const session = await getSession();
+    token = session?.accessToken ?? null;
+  }
 
   const isFormData = options.body instanceof FormData;
 
