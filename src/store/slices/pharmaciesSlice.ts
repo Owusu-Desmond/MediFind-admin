@@ -58,6 +58,58 @@ export function transformPharmacy(bp: BackendPharmacy): Pharmacy {
   };
 }
 
+interface PharmaciesState {
+  items: Pharmacy[];
+  loading: boolean;
+  error: string | null;
+}
+
+const initialState: PharmaciesState = {
+  items: [],
+  loading: false,
+  error: null,
+};
+
+export const fetchPharmacies = createAsyncThunk(
+  "pharmacies/fetchPharmacies",
+  async (_, { rejectWithValue }) => {
+    try {
+      const data = await apiClient<BackendPharmacy[]>("/api/pharmacies/");
+      return data.map(transformPharmacy);
+    } catch (err: any) {
+      return rejectWithValue(err.message || "Failed to fetch pharmacies");
+    }
+  }
+);
+
+export const approvePharmacy = createAsyncThunk(
+  "pharmacies/approvePharmacy",
+  async (id: string, { rejectWithValue }) => {
+    try {
+      const updated = await apiClient<BackendPharmacy>(`/api/pharmacies/${id}/status?status=Approved`, {
+        method: "PATCH",
+      });
+      return transformPharmacy(updated);
+    } catch (err: any) {
+      return rejectWithValue(err.message || "Failed to approve pharmacy");
+    }
+  }
+);
+
+export const suspendPharmacy = createAsyncThunk(
+  "pharmacies/suspendPharmacy",
+  async (id: string, { rejectWithValue }) => {
+    try {
+      const updated = await apiClient<BackendPharmacy>(`/api/pharmacies/${id}/status?status=Suspended`, {
+        method: "PATCH",
+      });
+      return transformPharmacy(updated);
+    } catch (err: any) {
+      return rejectWithValue(err.message || "Failed to suspend pharmacy");
+    }
+  }
+);
+
 interface AddPharmacyInput extends Omit<Pharmacy, "id" | "status" | "dateSubmitted"> {
   certificateFile?: File | null;
 }

@@ -1,11 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { approvePharmacy, suspendPharmacy } from "@/store/slices/pharmaciesSlice";
 import { addNotification } from "@/store/slices/notificationsSlice";
+import { apiClient } from "@/store/apiClient";
 import {
   ArrowLeft,
   Building2,
@@ -27,6 +28,49 @@ export default function PharmacyApprovalPage() {
   const pharmacies = useAppSelector((state) => state.pharmacies.items);
   const id = params.id as string;
   const pharmacy = pharmacies.find((p) => p.id === id);
+  const [docLoading, setDocLoading] = useState(false);
+
+  /** Extract the object path inside the bucket from the full Supabase URL */
+  function extractObjectPath(url: string): string {
+    // URL format: https://<project>.supabase.co/storage/v1/object/public/<bucket>/<object_path>
+    const marker = "/object/public/";
+    const altMarker = "/object/sign/";
+    let idx = url.indexOf(marker);
+    if (idx !== -1) {
+      // skip past "/object/public/<bucketName>/"
+      const afterMarker = url.slice(idx + marker.length);
+      const slashIdx = afterMarker.indexOf("/");
+      return slashIdx !== -1 ? afterMarker.slice(slashIdx + 1) : afterMarker;
+    }
+    idx = url.indexOf(altMarker);
+    if (idx !== -1) {
+      const afterMarker = url.slice(idx + altMarker.length);
+      const slashIdx = afterMarker.indexOf("/");
+      return slashIdx !== -1 ? afterMarker.slice(slashIdx + 1) : afterMarker;
+    }
+    // Fallback: try to grab everything after the last known folder segment
+    return url.split("/").slice(-2).join("/");
+  }
+
+  async function viewDocument() {
+    if (!pharmacy?.certificateUrl) return;
+    setDocLoading(true);
+    try {
+      const objectPath = extractObjectPath(pharmacy.certificateUrl);
+      const data = await apiClient<{ signed_url: string }>(
+        `/api/pharmacies/signed-url?object_path=${encodeURIComponent(objectPath)}`
+      );
+      if (data.signed_url) {
+        window.open(data.signed_url, "_blank", "noreferrer");
+      } else {
+        alert("Could not generate signed URL for this document.");
+      }
+    } catch (e: any) {
+      alert(`Failed to open document: ${e.message}`);
+    } finally {
+      setDocLoading(false);
+    }
+  }
 
   if (!pharmacy) {
     return (
@@ -155,18 +199,13 @@ export default function PharmacyApprovalPage() {
                   </p>
                   <p className="text-xs text-slate-400 font-semibold">Uploaded Document • Server Verified</p>
                 </div>
-                <a
-                  href={
-                    pharmacy.certificateUrl.startsWith("http")
-                      ? pharmacy.certificateUrl
-                      : `${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"}${pharmacy.certificateUrl}`
-                  }
-                  target="_blank"
-                  rel="noreferrer"
-                  className="ml-auto px-3 py-1.5 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-800 text-xs font-bold rounded-lg transition-colors shrink-0"
+                <button
+                  onClick={viewDocument}
+                  disabled={docLoading}
+                  className="ml-auto px-3 py-1.5 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-800 text-xs font-bold rounded-lg transition-colors shrink-0 disabled:opacity-60 disabled:cursor-wait"
                 >
-                  View Document
-                </a>
+                  {docLoading ? "Opening…" : "View Document"}
+                </button>
               </div>
             ) : (
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-4">
