@@ -17,6 +17,7 @@ export interface BackendPharmacy {
   lat?: number | null;
   lng?: number | null;
   verified?: boolean;
+  certificate_url?: string | null;
 }
 
 export interface Pharmacy {
@@ -34,6 +35,7 @@ export interface Pharmacy {
   openingHours: string;
   lat: number | null;
   lng: number | null;
+  certificateUrl?: string | null;
 }
 
 export function transformPharmacy(bp: BackendPharmacy): Pharmacy {
@@ -52,65 +54,31 @@ export function transformPharmacy(bp: BackendPharmacy): Pharmacy {
     openingHours: bp.opening_hours || "",
     lat: bp.lat ?? null,
     lng: bp.lng ?? null,
+    certificateUrl: bp.certificate_url || null,
   };
 }
 
-interface PharmaciesState {
-  items: Pharmacy[];
-  loading: boolean;
-  error: string | null;
+interface AddPharmacyInput extends Omit<Pharmacy, "id" | "status" | "dateSubmitted"> {
+  certificateFile?: File | null;
 }
-
-const initialState: PharmaciesState = {
-  items: [],
-  loading: false,
-  error: null,
-};
-
-export const fetchPharmacies = createAsyncThunk(
-  "pharmacies/fetchPharmacies",
-  async (_, { rejectWithValue }) => {
-    try {
-      const data = await apiClient<BackendPharmacy[]>("/api/pharmacies/");
-      return data.map(transformPharmacy);
-    } catch (err: any) {
-      return rejectWithValue(err.message || "Failed to fetch pharmacies");
-    }
-  }
-);
-
-export const approvePharmacy = createAsyncThunk(
-  "pharmacies/approvePharmacy",
-  async (id: string, { rejectWithValue }) => {
-    try {
-      const updated = await apiClient<BackendPharmacy>(`/api/pharmacies/${id}/status?status=Approved`, {
-        method: "PATCH",
-      });
-      return transformPharmacy(updated);
-    } catch (err: any) {
-      return rejectWithValue(err.message || "Failed to approve pharmacy");
-    }
-  }
-);
-
-export const suspendPharmacy = createAsyncThunk(
-  "pharmacies/suspendPharmacy",
-  async (id: string, { rejectWithValue }) => {
-    try {
-      const updated = await apiClient<BackendPharmacy>(`/api/pharmacies/${id}/status?status=Suspended`, {
-        method: "PATCH",
-      });
-      return transformPharmacy(updated);
-    } catch (err: any) {
-      return rejectWithValue(err.message || "Failed to suspend pharmacy");
-    }
-  }
-);
 
 export const addPharmacy = createAsyncThunk(
   "pharmacies/addPharmacy",
-  async (pharmacyData: Omit<Pharmacy, "id" | "status" | "dateSubmitted">, { rejectWithValue }) => {
+  async (pharmacyData: AddPharmacyInput, { rejectWithValue }) => {
     try {
+      let certificateUrl = pharmacyData.certificateUrl || null;
+
+      // If a raw certificate file is attached, upload it first to the server endpoint
+      if (pharmacyData.certificateFile) {
+        const fileFormData = new FormData();
+        fileFormData.append("file", pharmacyData.certificateFile);
+        const uploadRes = await apiClient<{ url: string }>("/api/pharmacies/upload-certificate", {
+          method: "POST",
+          body: fileFormData,
+        });
+        certificateUrl = uploadRes.url;
+      }
+
       const payload = {
         name: pharmacyData.name,
         location: pharmacyData.location,
@@ -123,6 +91,7 @@ export const addPharmacy = createAsyncThunk(
         opening_hours: pharmacyData.openingHours,
         lat: pharmacyData.lat,
         lng: pharmacyData.lng,
+        certificate_url: certificateUrl,
       };
       const newPh = await apiClient<BackendPharmacy>("/api/pharmacies/", {
         method: "POST",

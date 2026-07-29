@@ -9,8 +9,10 @@ export async function apiClient<T>(
   const session = await getSession();
   const token = session?.accessToken;
 
+  const isFormData = options.body instanceof FormData;
+
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(options.headers as Record<string, string>),
   };
 

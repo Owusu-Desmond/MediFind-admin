@@ -144,30 +144,44 @@ export default function PharmacyApprovalPage() {
           {/* Documentation Display */}
           <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
             <h3 className="font-extrabold text-slate-800 text-sm border-b border-slate-100 pb-3">Submitted Documentation</h3>
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-4">
-              <div className="w-10 h-12 bg-red-500 rounded-lg flex items-center justify-center text-white text-[10px] font-black tracking-wider shrink-0">
-                PDF
+            {pharmacy.certificateUrl ? (
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-4">
+                <div className="w-10 h-12 bg-teal-700 rounded-lg flex items-center justify-center text-white text-[10px] font-black tracking-wider shrink-0 uppercase">
+                  {pharmacy.certificateUrl.split(".").pop() || "DOC"}
+                </div>
+                <div className="overflow-hidden">
+                  <p className="text-sm font-bold text-slate-700 truncate">
+                    {pharmacy.certificateUrl.split("/").pop()}
+                  </p>
+                  <p className="text-xs text-slate-400 font-semibold">Uploaded Document • Server Verified</p>
+                </div>
+                <a
+                  href={
+                    pharmacy.certificateUrl.startsWith("http")
+                      ? pharmacy.certificateUrl
+                      : `${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"}${pharmacy.certificateUrl}`
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                  className="ml-auto px-3 py-1.5 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-800 text-xs font-bold rounded-lg transition-colors shrink-0"
+                >
+                  View Document
+                </a>
               </div>
-              <div>
-                <p className="text-sm font-bold text-slate-700">pharmacy_council_certificate.pdf</p>
-                <p className="text-xs text-slate-400 font-semibold">Uploaded {pharmacy.dateSubmitted} • 2.4 MB</p>
+            ) : (
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-4">
+                <div className="w-10 h-12 bg-amber-500 rounded-lg flex items-center justify-center text-white text-[10px] font-black tracking-wider shrink-0">
+                  DOC
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-700">Council License Certificate</p>
+                  <p className="text-xs text-slate-400 font-semibold">Submitted under License #{pharmacy.licenseNumber}</p>
+                </div>
+                <span className="ml-auto text-amber-600 text-xs font-bold bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-100">
+                  Standard Registration
+                </span>
               </div>
-              <span className="ml-auto flex items-center gap-1 text-emerald-600 text-xs font-bold">
-                <CheckCircle size={14} className="stroke-[2.5]" /> Verified
-              </span>
-            </div>
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-4">
-              <div className="w-10 h-12 bg-blue-500 rounded-lg flex items-center justify-center text-white text-[10px] font-black shrink-0">
-                IMG
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-700">pharmacist_license_card.jpg</p>
-                <p className="text-xs text-slate-400 font-semibold">Uploaded {pharmacy.dateSubmitted} • 0.8 MB</p>
-              </div>
-              <span className="ml-auto flex items-center gap-1 text-emerald-600 text-xs font-bold">
-                <CheckCircle size={14} className="stroke-[2.5]" /> Verified
-              </span>
-            </div>
+            )}
           </div>
         </div>
 
