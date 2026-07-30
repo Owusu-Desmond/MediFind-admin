@@ -25,9 +25,10 @@ import {
 export default function PharmacyApprovalPage() {
   const params = useParams();
   const dispatch = useAppDispatch();
-  const { items: pharmacies, actionLoading } = useAppSelector((state) => state.pharmacies);
+  const { items: pharmacies, pendingIds } = useAppSelector((state) => state.pharmacies);
   const id = params.id as string;
   const pharmacy = pharmacies.find((p) => p.id === id);
+  const isDetailLoading = pendingIds.includes(id);
   const [docLoading, setDocLoading] = useState(false);
 
   /** Extract the object path inside the bucket from the full Supabase URL */
@@ -84,7 +85,7 @@ export default function PharmacyApprovalPage() {
   }
 
   const handleApprove = async () => {
-    if (!pharmacy || actionLoading) return;
+    if (!pharmacy || pendingIds.includes(pharmacy.id)) return;
     try {
       await dispatch(approvePharmacy(pharmacy.id)).unwrap();
       dispatch(
@@ -100,7 +101,7 @@ export default function PharmacyApprovalPage() {
   };
 
   const handleSuspend = async () => {
-    if (!pharmacy || actionLoading) return;
+    if (!pharmacy || pendingIds.includes(pharmacy.id)) return;
     try {
       await dispatch(suspendPharmacy(pharmacy.id)).unwrap();
       dispatch(
@@ -261,17 +262,17 @@ export default function PharmacyApprovalPage() {
               <div className="space-y-3">
                 <button
                   onClick={handleApprove}
-                  disabled={actionLoading}
+                  disabled={isDetailLoading}
                   className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm shadow-md shadow-emerald-700/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <ShieldCheck size={16} /> {actionLoading ? "Processing…" : "Approve & Activate Branch"}
+                  <ShieldCheck size={16} /> {isDetailLoading ? "Processing…" : "Approve & Activate Branch"}
                 </button>
                 <button
                   onClick={handleSuspend}
-                  disabled={actionLoading}
+                  disabled={isDetailLoading}
                   className="w-full flex items-center justify-center gap-2 border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold py-3 rounded-xl text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <ShieldX size={16} /> {actionLoading ? "Processing…" : "Reject Application"}
+                  <ShieldX size={16} /> {isDetailLoading ? "Processing…" : "Reject Application"}
                 </button>
               </div>
             )}
@@ -283,10 +284,10 @@ export default function PharmacyApprovalPage() {
                 </div>
                 <button
                   onClick={handleSuspend}
-                  disabled={actionLoading}
+                  disabled={isDetailLoading}
                   className="w-full flex items-center justify-center gap-2 border border-amber-200 text-amber-700 hover:bg-amber-50 font-bold py-3 rounded-xl text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Ban size={16} /> {actionLoading ? "Processing…" : "Suspend This Branch"}
+                  <Ban size={16} /> {isDetailLoading ? "Processing…" : "Suspend This Branch"}
                 </button>
               </div>
             )}

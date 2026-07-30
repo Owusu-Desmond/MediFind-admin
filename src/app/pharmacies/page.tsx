@@ -46,7 +46,7 @@ function parseCoordinates(str: string): { lat: number | null; lng: number | null
 /* ------------------------------------------------------------------ */
 export default function PharmacyAdmin() {
   const dispatch = useAppDispatch();
-  const { items: pharmacies, loading, actionLoading } = useAppSelector(
+  const { items: pharmacies, loading, pendingIds, submittingForm } = useAppSelector(
     (state) => state.pharmacies
   );
 
@@ -113,7 +113,7 @@ export default function PharmacyAdmin() {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (actionLoading) return;
+    if (submittingForm) return;
     const { lat, lng } = parseCoordinates(formData.gpsCoordinates);
     try {
       await dispatch(
@@ -149,7 +149,7 @@ export default function PharmacyAdmin() {
 
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!current || actionLoading) return;
+    if (!current || pendingIds.includes(current.id) || submittingForm) return;
     const { lat, lng } = parseCoordinates(formData.gpsCoordinates);
     try {
       await dispatch(
@@ -184,7 +184,7 @@ export default function PharmacyAdmin() {
   };
 
   const handleDelete = async () => {
-    if (!current || actionLoading) return;
+    if (!current || pendingIds.includes(current.id) || submittingForm) return;
     try {
       await dispatch(deletePharmacy(current.id)).unwrap();
       dispatch(
@@ -201,7 +201,7 @@ export default function PharmacyAdmin() {
   };
 
   const handleApprove = async (p: Pharmacy) => {
-    if (actionLoading) return;
+    if (pendingIds.includes(p.id)) return;
     try {
       await dispatch(approvePharmacy(p.id)).unwrap();
       dispatch(
@@ -217,7 +217,7 @@ export default function PharmacyAdmin() {
   };
 
   const handleSuspend = async (p: Pharmacy) => {
-    if (actionLoading) return;
+    if (pendingIds.includes(p.id)) return;
     try {
       await dispatch(suspendPharmacy(p.id)).unwrap();
       dispatch(
@@ -355,26 +355,34 @@ export default function PharmacyAdmin() {
                         {p.status === "Pending Approval" && (
                           <button
                             onClick={() => handleApprove(p)}
-                            disabled={actionLoading}
+                            disabled={pendingIds.includes(p.id)}
                             title="Approve"
                             className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white flex items-center justify-center border border-emerald-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                           >
-                            <Check size={14} className="stroke-[2.5]" />
+                            {pendingIds.includes(p.id) ? (
+                              <div className="w-3.5 h-3.5 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin" />
+                            ) : (
+                              <Check size={14} className="stroke-[2.5]" />
+                            )}
                           </button>
                         )}
                         {p.status === "Approved" && (
                           <button
                             onClick={() => handleSuspend(p)}
-                            disabled={actionLoading}
+                            disabled={pendingIds.includes(p.id)}
                             title="Suspend"
                             className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white flex items-center justify-center border border-amber-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                           >
-                            <Ban size={14} />
+                            {pendingIds.includes(p.id) ? (
+                              <div className="w-3.5 h-3.5 border-2 border-amber-600/30 border-t-amber-600 rounded-full animate-spin" />
+                            ) : (
+                              <Ban size={14} />
+                            )}
                           </button>
                         )}
                         <button
                           onClick={() => openEdit(p)}
-                          disabled={actionLoading}
+                          disabled={pendingIds.includes(p.id)}
                           title="Edit"
                           className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-600 flex items-center justify-center border border-transparent hover:border-slate-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                         >
@@ -382,11 +390,15 @@ export default function PharmacyAdmin() {
                         </button>
                         <button
                           onClick={() => openDelete(p)}
-                          disabled={actionLoading}
+                          disabled={pendingIds.includes(p.id)}
                           title="Delete"
                           className="w-8 h-8 rounded-lg hover:bg-rose-50 text-rose-500 flex items-center justify-center border border-transparent hover:border-rose-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                          <Trash2 size={14} />
+                          {pendingIds.includes(p.id) ? (
+                            <div className="w-3.5 h-3.5 border-2 border-rose-600/30 border-t-rose-600 rounded-full animate-spin" />
+                          ) : (
+                            <Trash2 size={14} />
+                          )}
                         </button>
                       </div>
                     </td>
@@ -404,7 +416,7 @@ export default function PharmacyAdmin() {
           title="Register New Pharmacy Branch"
           onSubmit={handleAdd}
           onClose={() => setShowAddModal(false)}
-          submitting={actionLoading}
+          submitting={submittingForm}
           {...sharedFormProps}
         />
       )}
@@ -415,7 +427,7 @@ export default function PharmacyAdmin() {
           title="Edit Pharmacy Details"
           onSubmit={handleEdit}
           onClose={() => setShowEditModal(false)}
-          submitting={actionLoading}
+          submitting={submittingForm}
           {...sharedFormProps}
         />
       )}
@@ -438,17 +450,17 @@ export default function PharmacyAdmin() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                disabled={actionLoading}
+                disabled={Boolean(current && pendingIds.includes(current.id))}
                 className="flex-1 py-2.5 border border-slate-200 text-slate-600 font-bold rounded-xl text-xs hover:bg-slate-50 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
-                disabled={actionLoading}
+                disabled={Boolean(current && pendingIds.includes(current.id))}
                 className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/25 disabled:opacity-60 flex items-center justify-center gap-1.5"
               >
-                {actionLoading ? "Deleting…" : "Delete Pharmacy"}
+                {current && pendingIds.includes(current.id) ? "Deleting…" : "Delete Pharmacy"}
               </button>
             </div>
           </div>

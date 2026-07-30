@@ -61,14 +61,16 @@ export function transformPharmacy(bp: BackendPharmacy): Pharmacy {
 interface PharmaciesState {
   items: Pharmacy[];
   loading: boolean;
-  actionLoading: boolean;
+  pendingIds: string[];
+  submittingForm: boolean;
   error: string | null;
 }
 
 const initialState: PharmaciesState = {
   items: [],
   loading: false,
-  actionLoading: false,
+  pendingIds: [],
+  submittingForm: false,
   error: null,
 };
 
@@ -241,7 +243,7 @@ const pharmaciesSlice = createSlice({
 
       // approvePharmacy
       .addCase(approvePharmacy.fulfilled, (state, action: PayloadAction<Pharmacy>) => {
-        state.actionLoading = false;
+        state.pendingIds = state.pendingIds.filter((id) => id !== action.payload.id);
         const index = state.items.findIndex((p) => p.id === action.payload.id);
         if (index !== -1) {
           state.items[index] = action.payload;
@@ -252,7 +254,7 @@ const pharmaciesSlice = createSlice({
 
       // suspendPharmacy
       .addCase(suspendPharmacy.fulfilled, (state, action: PayloadAction<Pharmacy>) => {
-        state.actionLoading = false;
+        state.pendingIds = state.pendingIds.filter((id) => id !== action.payload.id);
         const index = state.items.findIndex((p) => p.id === action.payload.id);
         if (index !== -1) {
           state.items[index] = action.payload;
@@ -263,13 +265,14 @@ const pharmaciesSlice = createSlice({
 
       // addPharmacy
       .addCase(addPharmacy.fulfilled, (state, action: PayloadAction<Pharmacy>) => {
-        state.actionLoading = false;
+        state.submittingForm = false;
         state.items.unshift(action.payload);
       })
 
       // updatePharmacy
       .addCase(updatePharmacy.fulfilled, (state, action: PayloadAction<Pharmacy>) => {
-        state.actionLoading = false;
+        state.pendingIds = state.pendingIds.filter((id) => id !== action.payload.id);
+        state.submittingForm = false;
         const index = state.items.findIndex((p) => p.id === action.payload.id);
         if (index !== -1) {
           state.items[index] = action.payload;
@@ -278,30 +281,51 @@ const pharmaciesSlice = createSlice({
 
       // deletePharmacy
       .addCase(deletePharmacy.fulfilled, (state, action: PayloadAction<string>) => {
-        state.actionLoading = false;
+        state.pendingIds = state.pendingIds.filter((id) => id !== action.payload);
         state.items = state.items.filter((p) => p.id !== action.payload);
       })
 
-      // Action Pending Handlers (to set actionLoading = true)
+      // Action Pending Handlers (adds ID to pendingIds)
       .addMatcher(
         (action) =>
           action.type.startsWith("pharmacies/") &&
           action.type.endsWith("/pending") &&
           !action.type.includes("fetchPharmacies"),
-        (state) => {
-          state.actionLoading = true;
+        (state, action: any) => {
           state.error = null;
+          const arg = action.meta?.arg;
+          let id: string | null = null;
+          if (typeof arg === "string") {
+            id = arg;
+          } else if (arg && typeof arg === "object" && arg.id) {
+            id = String(arg.id);
+          } else {
+            state.submittingForm = true;
+          }
+          if (id && !state.pendingIds.includes(id)) {
+            state.pendingIds.push(id);
+          }
         }
       )
-      // Action Rejected Handlers (reset actionLoading = false)
+      // Action Rejected Handlers (removes ID from pendingIds)
       .addMatcher(
         (action) =>
           action.type.startsWith("pharmacies/") &&
           action.type.endsWith("/rejected") &&
           !action.type.includes("fetchPharmacies"),
         (state, action: any) => {
-          state.actionLoading = false;
+          state.submittingForm = false;
           state.error = action.payload as string;
+          const arg = action.meta?.arg;
+          let id: string | null = null;
+          if (typeof arg === "string") {
+            id = arg;
+          } else if (arg && typeof arg === "object" && arg.id) {
+            id = String(arg.id);
+          }
+          if (id) {
+            state.pendingIds = state.pendingIds.filter((pId) => pId !== id);
+          }
         }
       );
   },
