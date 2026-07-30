@@ -7,6 +7,8 @@ import {
   approvePharmacy,
   suspendPharmacy,
   addPharmacy,
+  updatePharmacy,
+  deletePharmacy,
   Pharmacy,
 } from "@/store/slices/pharmaciesSlice";
 import { addNotification } from "@/store/slices/notificationsSlice";
@@ -42,10 +44,11 @@ function parseCoordinates(str: string): { lat: number | null; lng: number | null
 /* ------------------------------------------------------------------ */
 /* Main Page Component                                                  */
 /* ------------------------------------------------------------------ */
-export default function PharmaciesPage() {
+export default function PharmacyAdmin() {
   const dispatch = useAppDispatch();
-  const pharmacies = useAppSelector((s) => s.pharmacies.items);
-  const loading = useAppSelector((s) => s.pharmacies.loading);
+  const { items: pharmacies, loading, actionLoading } = useAppSelector(
+    (state) => state.pharmacies
+  );
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -108,65 +111,125 @@ export default function PharmaciesPage() {
     setShowDeleteModal(true);
   };
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (actionLoading) return;
     const { lat, lng } = parseCoordinates(formData.gpsCoordinates);
-    dispatch(
-      addPharmacy({
-        name: formData.name,
-        location: formData.location,
-        licenseNumber: formData.licenseNumber,
-        pharmacistName: formData.pharmacistName,
-        pharmacistId: formData.pharmacistId,
-        phone: formData.phone,
-        email: formData.email,
-        openingHours: formData.openingHours,
-        deliveryOffered: true,
-        lat,
-        lng,
-        certificateFile: formData.certificateFile,
-        certificateUrl: formData.certificateUrl,
-      })
-    );
-    dispatch(
-      addNotification({
-        title: "New Registration Request",
-        message: `${formData.name} application submitted for verification.`,
-        type: "info",
-      })
-    );
-    setShowAddModal(false);
+    try {
+      await dispatch(
+        addPharmacy({
+          name: formData.name,
+          location: formData.location,
+          licenseNumber: formData.licenseNumber,
+          pharmacistName: formData.pharmacistName,
+          pharmacistId: formData.pharmacistId,
+          phone: formData.phone,
+          email: formData.email,
+          openingHours: formData.openingHours,
+          deliveryOffered: true,
+          lat,
+          lng,
+          certificateFile: formData.certificateFile,
+          certificateUrl: formData.certificateUrl,
+        })
+      ).unwrap();
+
+      dispatch(
+        addNotification({
+          title: "New Registration Request",
+          message: `${formData.name} application submitted for verification.`,
+          type: "info",
+        })
+      );
+      setShowAddModal(false);
+    } catch (err: any) {
+      alert(`Failed to add pharmacy: ${err}`);
+    }
   };
 
-  const handleEdit = (e: React.FormEvent) => {
+  const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setShowEditModal(false);
+    if (!current || actionLoading) return;
+    const { lat, lng } = parseCoordinates(formData.gpsCoordinates);
+    try {
+      await dispatch(
+        updatePharmacy({
+          id: current.id,
+          name: formData.name,
+          location: formData.location,
+          licenseNumber: formData.licenseNumber,
+          pharmacistName: formData.pharmacistName,
+          pharmacistId: formData.pharmacistId,
+          phone: formData.phone,
+          email: formData.email,
+          openingHours: formData.openingHours,
+          lat,
+          lng,
+          certificateFile: formData.certificateFile,
+          certificateUrl: formData.certificateUrl,
+        })
+      ).unwrap();
+
+      dispatch(
+        addNotification({
+          title: "Pharmacy Updated",
+          message: `${formData.name} details successfully updated.`,
+          type: "success",
+        })
+      );
+      setShowEditModal(false);
+    } catch (err: any) {
+      alert(`Failed to update pharmacy: ${err}`);
+    }
   };
 
-  const handleDelete = () => {
-    setShowDeleteModal(false);
+  const handleDelete = async () => {
+    if (!current || actionLoading) return;
+    try {
+      await dispatch(deletePharmacy(current.id)).unwrap();
+      dispatch(
+        addNotification({
+          title: "Pharmacy Removed",
+          message: `${current.name} was deleted from registry.`,
+          type: "warning",
+        })
+      );
+      setShowDeleteModal(false);
+    } catch (err: any) {
+      alert(`Failed to delete pharmacy: ${err}`);
+    }
   };
 
-  const handleApprove = (p: Pharmacy) => {
-    dispatch(approvePharmacy(p.id));
-    dispatch(
-      addNotification({
-        title: "Pharmacy Approved",
-        message: `${p.name} verified and granted platform access.`,
-        type: "success",
-      })
-    );
+  const handleApprove = async (p: Pharmacy) => {
+    if (actionLoading) return;
+    try {
+      await dispatch(approvePharmacy(p.id)).unwrap();
+      dispatch(
+        addNotification({
+          title: "Pharmacy Approved",
+          message: `${p.name} verified and granted platform access.`,
+          type: "success",
+        })
+      );
+    } catch (err: any) {
+      alert(`Failed to approve pharmacy: ${err}`);
+    }
   };
 
-  const handleSuspend = (p: Pharmacy) => {
-    dispatch(suspendPharmacy(p.id));
-    dispatch(
-      addNotification({
-        title: "Pharmacy Suspended",
-        message: `${p.name} has been suspended from the network.`,
-        type: "warning",
-      })
-    );
+  const handleSuspend = async (p: Pharmacy) => {
+    if (actionLoading) return;
+    try {
+      await dispatch(suspendPharmacy(p.id)).unwrap();
+      dispatch(
+        addNotification({
+          title: "Pharmacy Suspended",
+          message: `${p.name} has been suspended from the network.`,
+          type: "warning",
+        })
+      );
+    } catch (err: any) {
+      alert(`Failed to suspend pharmacy: ${err}`);
+    }
   };
 
   const statusBadge = (status: Pharmacy["status"]) => {
@@ -292,8 +355,9 @@ export default function PharmaciesPage() {
                         {p.status === "Pending Approval" && (
                           <button
                             onClick={() => handleApprove(p)}
+                            disabled={actionLoading}
                             title="Approve"
-                            className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white flex items-center justify-center border border-emerald-100 transition-all"
+                            className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white flex items-center justify-center border border-emerald-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             <Check size={14} className="stroke-[2.5]" />
                           </button>
@@ -301,23 +365,26 @@ export default function PharmaciesPage() {
                         {p.status === "Approved" && (
                           <button
                             onClick={() => handleSuspend(p)}
+                            disabled={actionLoading}
                             title="Suspend"
-                            className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white flex items-center justify-center border border-amber-100 transition-all"
+                            className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white flex items-center justify-center border border-amber-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             <Ban size={14} />
                           </button>
                         )}
                         <button
                           onClick={() => openEdit(p)}
+                          disabled={actionLoading}
                           title="Edit"
-                          className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-600 flex items-center justify-center border border-transparent hover:border-slate-200 transition-all"
+                          className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-600 flex items-center justify-center border border-transparent hover:border-slate-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           <Edit2 size={14} />
                         </button>
                         <button
                           onClick={() => openDelete(p)}
+                          disabled={actionLoading}
                           title="Delete"
-                          className="w-8 h-8 rounded-lg hover:bg-rose-50 text-rose-500 flex items-center justify-center border border-transparent hover:border-rose-100 transition-all"
+                          className="w-8 h-8 rounded-lg hover:bg-rose-50 text-rose-500 flex items-center justify-center border border-transparent hover:border-rose-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -337,6 +404,7 @@ export default function PharmaciesPage() {
           title="Register New Pharmacy Branch"
           onSubmit={handleAdd}
           onClose={() => setShowAddModal(false)}
+          submitting={actionLoading}
           {...sharedFormProps}
         />
       )}
@@ -347,6 +415,7 @@ export default function PharmaciesPage() {
           title="Edit Pharmacy Details"
           onSubmit={handleEdit}
           onClose={() => setShowEditModal(false)}
+          submitting={actionLoading}
           {...sharedFormProps}
         />
       )}
@@ -369,15 +438,17 @@ export default function PharmaciesPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="flex-1 py-2.5 border border-slate-200 text-slate-600 font-bold rounded-xl text-xs hover:bg-slate-50"
+                disabled={actionLoading}
+                className="flex-1 py-2.5 border border-slate-200 text-slate-600 font-bold rounded-xl text-xs hover:bg-slate-50 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
-                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/25"
+                disabled={actionLoading}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/25 disabled:opacity-60 flex items-center justify-center gap-1.5"
               >
-                Delete Pharmacy
+                {actionLoading ? "Deleting…" : "Delete Pharmacy"}
               </button>
             </div>
           </div>

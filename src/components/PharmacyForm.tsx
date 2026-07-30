@@ -65,6 +65,7 @@ export interface PharmacyFormProps {
   setCloseTime: React.Dispatch<React.SetStateAction<string>>;
   onSubmit: (e: React.FormEvent) => void;
   onClose: () => void;
+  submitting?: boolean;
 }
 
 export default function PharmacyForm({
@@ -79,6 +80,7 @@ export default function PharmacyForm({
   setCloseTime,
   onSubmit,
   onClose,
+  submitting = false,
 }: PharmacyFormProps) {
   const applyStructuredHours = (days: string, oTime: string, cTime: string) => {
     if (!oTime || !cTime) return;
@@ -452,16 +454,27 @@ export default function PharmacyForm({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-slate-200 text-slate-600 font-bold rounded-xl text-xs hover:bg-slate-50 transition-colors"
+              disabled={submitting}
+              className="px-4 py-2 border border-slate-200 text-slate-600 font-bold rounded-xl text-xs hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 bg-teal-700 hover:bg-teal-800 text-white font-bold rounded-xl text-xs shadow-md shadow-teal-700/20 transition-all flex items-center gap-1.5"
+              disabled={submitting}
+              className="px-5 py-2.5 bg-teal-700 hover:bg-teal-800 text-white font-bold rounded-xl text-xs shadow-md shadow-teal-700/20 transition-all flex items-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <Check size={15} className="stroke-[3]" />
-              Save &amp; Register Pharmacy
+              {submitting ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Saving Changes…
+                </>
+              ) : (
+                <>
+                  <Check size={15} className="stroke-[3]" />
+                  Save &amp; Submit
+                </>
+              )}
             </button>
           </div>
         </form>

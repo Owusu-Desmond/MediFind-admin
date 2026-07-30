@@ -25,7 +25,7 @@ import {
 export default function PharmacyApprovalPage() {
   const params = useParams();
   const dispatch = useAppDispatch();
-  const pharmacies = useAppSelector((state) => state.pharmacies.items);
+  const { items: pharmacies, actionLoading } = useAppSelector((state) => state.pharmacies);
   const id = params.id as string;
   const pharmacy = pharmacies.find((p) => p.id === id);
   const [docLoading, setDocLoading] = useState(false);
@@ -83,26 +83,36 @@ export default function PharmacyApprovalPage() {
     );
   }
 
-  const handleApprove = () => {
-    dispatch(approvePharmacy(pharmacy.id));
-    dispatch(
-      addNotification({
-        title: "Pharmacy Approved",
-        message: `${pharmacy.name} has been verified and approved.`,
-        type: "success",
-      })
-    );
+  const handleApprove = async () => {
+    if (!pharmacy || actionLoading) return;
+    try {
+      await dispatch(approvePharmacy(pharmacy.id)).unwrap();
+      dispatch(
+        addNotification({
+          title: "Pharmacy Approved",
+          message: `${pharmacy.name} has been verified and approved.`,
+          type: "success",
+        })
+      );
+    } catch (err: any) {
+      alert(`Failed to approve pharmacy: ${err}`);
+    }
   };
 
-  const handleSuspend = () => {
-    dispatch(suspendPharmacy(pharmacy.id));
-    dispatch(
-      addNotification({
-        title: "Pharmacy Suspended",
-        message: `${pharmacy.name} status updated to Suspended.`,
-        type: "warning",
-      })
-    );
+  const handleSuspend = async () => {
+    if (!pharmacy || actionLoading) return;
+    try {
+      await dispatch(suspendPharmacy(pharmacy.id)).unwrap();
+      dispatch(
+        addNotification({
+          title: "Pharmacy Suspended",
+          message: `${pharmacy.name} status updated to Suspended.`,
+          type: "warning",
+        })
+      );
+    } catch (err: any) {
+      alert(`Failed to suspend pharmacy: ${err}`);
+    }
   };
 
   const statusConfig = {
@@ -251,15 +261,17 @@ export default function PharmacyApprovalPage() {
               <div className="space-y-3">
                 <button
                   onClick={handleApprove}
-                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm shadow-md shadow-emerald-700/20 transition-all"
+                  disabled={actionLoading}
+                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm shadow-md shadow-emerald-700/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <ShieldCheck size={16} /> Approve & Activate Branch
+                  <ShieldCheck size={16} /> {actionLoading ? "Processing…" : "Approve & Activate Branch"}
                 </button>
                 <button
                   onClick={handleSuspend}
-                  className="w-full flex items-center justify-center gap-2 border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold py-3 rounded-xl text-sm transition-all"
+                  disabled={actionLoading}
+                  className="w-full flex items-center justify-center gap-2 border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold py-3 rounded-xl text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <ShieldX size={16} /> Reject Application
+                  <ShieldX size={16} /> {actionLoading ? "Processing…" : "Reject Application"}
                 </button>
               </div>
             )}
@@ -271,9 +283,10 @@ export default function PharmacyApprovalPage() {
                 </div>
                 <button
                   onClick={handleSuspend}
-                  className="w-full flex items-center justify-center gap-2 border border-amber-200 text-amber-700 hover:bg-amber-50 font-bold py-3 rounded-xl text-sm transition-all"
+                  disabled={actionLoading}
+                  className="w-full flex items-center justify-center gap-2 border border-amber-200 text-amber-700 hover:bg-amber-50 font-bold py-3 rounded-xl text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Ban size={16} /> Suspend This Branch
+                  <Ban size={16} /> {actionLoading ? "Processing…" : "Suspend This Branch"}
                 </button>
               </div>
             )}

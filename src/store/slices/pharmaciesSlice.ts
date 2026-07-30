@@ -61,12 +61,14 @@ export function transformPharmacy(bp: BackendPharmacy): Pharmacy {
 interface PharmaciesState {
   items: Pharmacy[];
   loading: boolean;
+  actionLoading: boolean;
   error: string | null;
 }
 
 const initialState: PharmaciesState = {
   items: [],
   loading: false,
+  actionLoading: false,
   error: null,
 };
 
@@ -156,12 +158,74 @@ export const addPharmacy = createAsyncThunk(
   }
 );
 
+export interface UpdatePharmacyInput extends Partial<Omit<Pharmacy, "dateSubmitted">> {
+  id: string;
+  certificateFile?: File | null;
+}
+
+export const updatePharmacy = createAsyncThunk(
+  "pharmacies/updatePharmacy",
+  async (pharmacyData: UpdatePharmacyInput, { rejectWithValue }) => {
+    try {
+      let certificateUrl = pharmacyData.certificateUrl;
+
+      if (pharmacyData.certificateFile) {
+        const fileFormData = new FormData();
+        fileFormData.append("file", pharmacyData.certificateFile);
+        const uploadRes = await apiClient<{ url: string }>("/api/pharmacies/upload-certificate", {
+          method: "POST",
+          body: fileFormData,
+        });
+        certificateUrl = uploadRes.url;
+      }
+
+      const payload: Record<string, any> = {};
+      if (pharmacyData.name !== undefined) payload.name = pharmacyData.name;
+      if (pharmacyData.location !== undefined) payload.location = pharmacyData.location;
+      if (pharmacyData.licenseNumber !== undefined) payload.license_number = pharmacyData.licenseNumber;
+      if (pharmacyData.pharmacistName !== undefined) payload.pharmacist_name = pharmacyData.pharmacistName;
+      if (pharmacyData.pharmacistId !== undefined) payload.pharmacist_id = pharmacyData.pharmacistId;
+      if (pharmacyData.phone !== undefined) payload.phone = pharmacyData.phone;
+      if (pharmacyData.email !== undefined) payload.email = pharmacyData.email;
+      if (pharmacyData.deliveryOffered !== undefined) payload.delivery_offered = pharmacyData.deliveryOffered;
+      if (pharmacyData.openingHours !== undefined) payload.opening_hours = pharmacyData.openingHours;
+      if (pharmacyData.lat !== undefined) payload.lat = pharmacyData.lat;
+      if (pharmacyData.lng !== undefined) payload.lng = pharmacyData.lng;
+      if (certificateUrl !== undefined) payload.certificate_url = certificateUrl;
+      if (pharmacyData.status !== undefined) payload.status = pharmacyData.status;
+
+      const updated = await apiClient<BackendPharmacy>(`/api/pharmacies/${pharmacyData.id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+      return transformPharmacy(updated);
+    } catch (err: any) {
+      return rejectWithValue(err.message || "Failed to update pharmacy");
+    }
+  }
+);
+
+export const deletePharmacy = createAsyncThunk(
+  "pharmacies/deletePharmacy",
+  async (id: string, { rejectWithValue }) => {
+    try {
+      await apiClient<{ message: string }>(`/api/pharmacies/${id}`, {
+        method: "DELETE",
+      });
+      return id;
+    } catch (err: any) {
+      return rejectWithValue(err.message || "Failed to delete pharmacy");
+    }
+  }
+);
+
 const pharmaciesSlice = createSlice({
   name: "pharmacies",
   initialState,
   reducers: {},
   extraReducers: (builder) => {
     builder
+      // fetchPharmacies
       .addCase(fetchPharmacies.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -174,7 +238,10 @@ const pharmaciesSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
+
+      // approvePharmacy
       .addCase(approvePharmacy.fulfilled, (state, action: PayloadAction<Pharmacy>) => {
+        state.actionLoading = false;
         const index = state.items.findIndex((p) => p.id === action.payload.id);
         if (index !== -1) {
           state.items[index] = action.payload;
@@ -182,7 +249,10 @@ const pharmaciesSlice = createSlice({
           state.items.push(action.payload);
         }
       })
+
+      // suspendPharmacy
       .addCase(suspendPharmacy.fulfilled, (state, action: PayloadAction<Pharmacy>) => {
+        state.actionLoading = false;
         const index = state.items.findIndex((p) => p.id === action.payload.id);
         if (index !== -1) {
           state.items[index] = action.payload;
@@ -190,9 +260,50 @@ const pharmaciesSlice = createSlice({
           state.items.push(action.payload);
         }
       })
+
+      // addPharmacy
       .addCase(addPharmacy.fulfilled, (state, action: PayloadAction<Pharmacy>) => {
+        state.actionLoading = false;
         state.items.unshift(action.payload);
-      });
+      })
+
+      // updatePharmacy
+      .addCase(updatePharmacy.fulfilled, (state, action: PayloadAction<Pharmacy>) => {
+        state.actionLoading = false;
+        const index = state.items.findIndex((p) => p.id === action.payload.id);
+        if (index !== -1) {
+          state.items[index] = action.payload;
+        }
+      })
+
+      // deletePharmacy
+      .addCase(deletePharmacy.fulfilled, (state, action: PayloadAction<string>) => {
+        state.actionLoading = false;
+        state.items = state.items.filter((p) => p.id !== action.payload);
+      })
+
+      // Action Pending Handlers (to set actionLoading = true)
+      .addMatcher(
+        (action) =>
+          action.type.startsWith("pharmacies/") &&
+          action.type.endsWith("/pending") &&
+          !action.type.includes("fetchPharmacies"),
+        (state) => {
+          state.actionLoading = true;
+          state.error = null;
+        }
+      )
+      // Action Rejected Handlers (reset actionLoading = false)
+      .addMatcher(
+        (action) =>
+          action.type.startsWith("pharmacies/") &&
+          action.type.endsWith("/rejected") &&
+          !action.type.includes("fetchPharmacies"),
+        (state, action: any) => {
+          state.actionLoading = false;
+          state.error = action.payload as string;
+        }
+      );
   },
 });
 
