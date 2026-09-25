@@ -191,15 +191,19 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Load from local storage
   useEffect(() => {
-    const storedAdmin = localStorage.getItem("admin_user");
-    const storedUsers = localStorage.getItem("admin_users");
-    const storedPharms = localStorage.getItem("admin_pharmacies");
-    const storedNotifs = localStorage.getItem("admin_notifications");
+    try {
+      const storedAdmin = localStorage.getItem("admin_user");
+      const storedUsers = localStorage.getItem("admin_users");
+      const storedPharms = localStorage.getItem("admin_pharmacies");
+      const storedNotifs = localStorage.getItem("admin_notifications");
 
-    if (storedAdmin) setAdmin(JSON.parse(storedAdmin));
-    if (storedUsers) setUsers(JSON.parse(storedUsers));
-    if (storedPharms) setPharmacies(JSON.parse(storedPharms));
-    if (storedNotifs) setNotifications(JSON.parse(storedNotifs));
+      if (storedAdmin) setAdmin(JSON.parse(storedAdmin));
+      if (storedUsers) setUsers(JSON.parse(storedUsers));
+      if (storedPharms) setPharmacies(JSON.parse(storedPharms));
+      if (storedNotifs) setNotifications(JSON.parse(storedNotifs));
+    } catch (err) {
+      console.warn("Failed to parse admin storage:", err);
+    }
 
     setIsLoaded(true);
   }, []);

@@ -20,6 +20,9 @@ import {
   Clock,
   CheckCircle,
   Ban,
+  Truck,
+  Compass,
+  ExternalLink,
 } from "lucide-react";
 
 export default function PharmacyApprovalPage() {
@@ -181,7 +184,7 @@ export default function PharmacyApprovalPage() {
                 { icon: <Phone size={16} />, label: "Phone Number", value: pharmacy.phone },
                 { icon: <Mail size={16} />, label: "Email Address", value: pharmacy.email },
                 { icon: <FileText size={16} />, label: "Council License", value: pharmacy.licenseNumber },
-                { icon: <UserCheck size={16} />, label: "Pharmacist Reg. ID", value: pharmacy.pharmacistId },
+                { icon: <UserCheck size={16} />, label: "Pharmacist Reg. PIN", value: pharmacy.pharmacistId },
               ].map((item) => (
                 <div key={item.label} className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
@@ -193,6 +196,54 @@ export default function PharmacyApprovalPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Location & Navigation Specs */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-5">
+            <h3 className="font-extrabold text-slate-800 text-sm border-b border-slate-100 pb-3 flex items-center justify-between">
+              <span>Location, Navigation & Operating Hours</span>
+              <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                pharmacy.deliveryOffered
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-slate-50 text-slate-600 border-slate-200"
+              }`}>
+                {pharmacy.deliveryOffered ? "Delivery Available" : "In-store Pickup Only"}
+              </span>
+            </h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">GhanaPost GPS</span>
+                <span className="font-mono font-bold text-slate-800 text-sm">
+                  {pharmacy.gpsAddress || "Not specified"}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Operating Hours</span>
+                <span className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                  <Clock size={14} className="text-teal-600" />
+                  {pharmacy.openingHours || "8:00 AM - 9:00 PM (Daily)"}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 sm:col-span-2 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">GPS Coordinates (App Navigation)</span>
+                  <span className="font-mono font-bold text-slate-800 text-sm">
+                    {pharmacy.lat && pharmacy.lng ? `${pharmacy.lat.toFixed(6)}, ${pharmacy.lng.toFixed(6)}` : "Coordinates not provided"}
+                  </span>
+                </div>
+                {pharmacy.lat && pharmacy.lng && (
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${pharmacy.lat},${pharmacy.lng}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-800 text-xs font-bold rounded-lg transition-colors"
+                  >
+                    <ExternalLink size={13} /> View on Map
+                  </a>
+                )}
+              </div>
             </div>
           </div>
 

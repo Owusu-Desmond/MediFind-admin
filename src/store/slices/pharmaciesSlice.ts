@@ -14,6 +14,7 @@ export interface BackendPharmacy {
   date_submitted?: string;
   delivery_offered?: boolean;
   opening_hours?: string | null;
+  gps_address?: string | null;
   lat?: number | null;
   lng?: number | null;
   verified?: boolean;
@@ -41,6 +42,7 @@ export interface Pharmacy {
   dateSubmitted: string;
   deliveryOffered: boolean;
   openingHours: string;
+  gpsAddress?: string | null;
   lat: number | null;
   lng: number | null;
   certificateUrl?: string | null;
@@ -73,6 +75,7 @@ export function transformPharmacy(bp: BackendPharmacy): Pharmacy {
     dateSubmitted: bp.date_submitted ? new Date(bp.date_submitted).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
     deliveryOffered: bp.delivery_offered ?? false,
     openingHours: bp.opening_hours || "",
+    gpsAddress: bp.gps_address || null,
     lat: bp.lat ?? null,
     lng: bp.lng ?? null,
     certificateUrl: bp.certificate_url || null,
