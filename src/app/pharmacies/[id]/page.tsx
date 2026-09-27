@@ -203,15 +203,14 @@ export default function PharmacyApprovalPage() {
           <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-5">
             <h3 className="font-extrabold text-slate-800 text-sm border-b border-slate-100 pb-3 flex items-center justify-between">
               <span>Location, Navigation & Operating Hours</span>
-              <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
-                pharmacy.deliveryOffered
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                  : "bg-slate-50 text-slate-600 border-slate-200"
-              }`}>
+              <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${pharmacy.deliveryOffered
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                : "bg-slate-50 text-slate-600 border-slate-200"
+                }`}>
                 {pharmacy.deliveryOffered ? "Delivery Available" : "In-store Pickup Only"}
               </span>
             </h3>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">GhanaPost GPS</span>
@@ -291,11 +290,10 @@ export default function PharmacyApprovalPage() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-extrabold text-slate-800 text-sm">Paystack & Payout Configuration</h3>
               <span
-                className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
-                  pharmacy.paystackSubaccountCode
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                    : "bg-amber-50 text-amber-700 border-amber-200"
-                }`}
+                className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${pharmacy.paystackSubaccountCode
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-amber-50 text-amber-700 border-amber-200"
+                  }`}
               >
                 {pharmacy.paystackSubaccountCode ? "Paystack Active" : "No Subaccount"}
               </span>
@@ -362,16 +360,16 @@ export default function PharmacyApprovalPage() {
                 <button
                   onClick={handleApprove}
                   disabled={isDetailLoading}
-                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm shadow-md shadow-emerald-700/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm shadow-md shadow-emerald-700/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <ShieldCheck size={16} /> {isDetailLoading ? "Processing…" : "Approve & Activate Branch"}
+                  <ShieldCheck size={24} /> {isDetailLoading ? "Processing…" : "Approve Branch"}
                 </button>
                 <button
                   onClick={handleSuspend}
                   disabled={isDetailLoading}
-                  className="w-full flex items-center justify-center gap-2 border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold py-3 rounded-xl text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center gap-1 border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold py-3 rounded-xl text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <ShieldX size={16} /> {isDetailLoading ? "Processing…" : "Reject Application"}
+                  <ShieldX size={24} /> {isDetailLoading ? "Processing…" : "Reject Application"}
                 </button>
               </div>
             )}
