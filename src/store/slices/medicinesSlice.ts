@@ -1,6 +1,12 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { apiClient } from "../apiClient";
 
+export interface BackendMedicineAlias {
+  id: number;
+  alias: string;
+  alias_type?: string;
+}
+
 export interface BackendMedicine {
   id: number;
   name: string;
@@ -22,6 +28,14 @@ export interface BackendMedicine {
   created_at?: string | null;
   updated_at?: string | null;
   active_pharmacies_count?: number;
+  aliases?: BackendMedicineAlias[];
+  matched_by?: string | null;
+}
+
+export interface MedicineAliasItem {
+  id: number;
+  alias: string;
+  aliasType?: string;
 }
 
 export interface Medicine {
@@ -43,6 +57,8 @@ export interface Medicine {
   isActive: boolean;
   createdAt: string;
   activePharmaciesCount: number;
+  aliases: MedicineAliasItem[];
+  matchedBy?: string;
 }
 
 export function transformMedicine(bm: BackendMedicine): Medicine {
@@ -65,6 +81,8 @@ export function transformMedicine(bm: BackendMedicine): Medicine {
     isActive: bm.is_active ?? true,
     createdAt: bm.created_at ? new Date(bm.created_at).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
     activePharmaciesCount: bm.active_pharmacies_count ?? 0,
+    aliases: bm.aliases ? bm.aliases.map((a) => ({ id: a.id, alias: a.alias, aliasType: a.alias_type })) : [],
+    matchedBy: bm.matched_by || undefined,
   };
 }
 
@@ -209,6 +227,65 @@ export const fetchCatalogueDuplicates = createAsyncThunk(
   }
 );
 
+export const addMedicineAlias = createAsyncThunk(
+  "medicines/addMedicineAlias",
+  async (
+    {
+      medicineId,
+      alias,
+      aliasType,
+    }: {
+      medicineId: string;
+      alias: string;
+      aliasType?: string;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const created = await apiClient<{ id: number; alias: string; alias_type?: string; medicine_id: number }>(
+        `/api/medicines/${medicineId}/aliases`,
+        {
+          method: "POST",
+          body: JSON.stringify({ alias, alias_type: aliasType || "Brand" }),
+        }
+      );
+      return {
+        medicineId,
+        alias: {
+          id: created.id,
+          alias: created.alias,
+          aliasType: created.alias_type,
+        },
+      };
+    } catch (err: any) {
+      return rejectWithValue(err.message || "Failed to add alias");
+    }
+  }
+);
+
+export const deleteMedicineAlias = createAsyncThunk(
+  "medicines/deleteMedicineAlias",
+  async (
+    {
+      medicineId,
+      aliasId,
+    }: {
+      medicineId: string;
+      aliasId: number;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      await apiClient<{ message: string }>(`/api/medicines/aliases/${aliasId}`, {
+        method: "DELETE",
+      });
+      return { medicineId, aliasId };
+    } catch (err: any) {
+      return rejectWithValue(err.message || "Failed to delete alias");
+    }
+  }
+);
+
 const medicinesSlice = createSlice({
   name: "medicines",
   initialState,
@@ -268,6 +345,22 @@ const medicinesSlice = createSlice({
         const index = state.items.findIndex((m) => m.id === action.payload.id);
         if (index !== -1) {
           state.items[index] = action.payload;
+        }
+      })
+
+      // addMedicineAlias
+      .addCase(addMedicineAlias.fulfilled, (state, action) => {
+        const med = state.items.find((m) => m.id === action.payload.medicineId);
+        if (med) {
+          med.aliases.push(action.payload.alias);
+        }
+      })
+
+      // deleteMedicineAlias
+      .addCase(deleteMedicineAlias.fulfilled, (state, action) => {
+        const med = state.items.find((m) => m.id === action.payload.medicineId);
+        if (med) {
+          med.aliases = med.aliases.filter((a) => a.id !== action.payload.aliasId);
         }
       });
   },

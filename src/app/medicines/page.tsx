@@ -9,6 +9,8 @@ import {
   createCatalogueMedicine,
   updateCatalogueMedicine,
   toggleMedicineActive,
+  addMedicineAlias,
+  deleteMedicineAlias,
   Medicine,
 } from "@/store/slices/medicinesSlice";
 import { addNotification } from "@/store/slices/notificationsSlice";
@@ -29,7 +31,9 @@ import {
   Loader2,
   X,
   Sparkles,
-  Info
+  Info,
+  Tag,
+  Trash2,
 } from "lucide-react";
 
 export default function AdminMedicinesPage() {
@@ -47,7 +51,14 @@ export default function AdminMedicinesPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDuplicatesModal, setShowDuplicatesModal] = useState(false);
+  const [showAliasesModal, setShowAliasesModal] = useState(false);
   const [currentMed, setCurrentMed] = useState<Medicine | null>(null);
+  const [aliasMed, setAliasMed] = useState<Medicine | null>(null);
+
+  // Alias Form State
+  const [newAliasName, setNewAliasName] = useState("");
+  const [newAliasType, setNewAliasType] = useState("Brand");
+  const [aliasSubmitting, setAliasSubmitting] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -68,10 +79,25 @@ export default function AdminMedicinesPage() {
   });
 
   useEffect(() => {
-    dispatch(fetchMedicines());
     dispatch(fetchMedicineMetadata());
     dispatch(fetchCatalogueDuplicates());
   }, [dispatch]);
+
+  // Debounced live backend search on query or filter changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      dispatch(
+        fetchMedicines({
+          q: searchTerm.trim() || undefined,
+          category: selectedCategory !== "All" ? selectedCategory : undefined,
+          dosage_form: selectedDosageForm !== "All" ? selectedDosageForm : undefined,
+          is_active: statusFilter === "active" ? true : statusFilter === "inactive" ? false : undefined,
+        })
+      );
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [dispatch, searchTerm, selectedCategory, selectedDosageForm, statusFilter]);
 
   const handleOpenAddModal = () => {
     setFormData({
@@ -169,24 +195,87 @@ export default function AdminMedicinesPage() {
     }
   };
 
-  // Filter Medicines
-  const filteredMedicines = medicines.filter((m) => {
-    const matchesSearch =
-      m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.genericName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.manufacturer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.strength.toLowerCase().includes(searchTerm.toLowerCase());
+  const handleOpenAliasesModal = (med: Medicine) => {
+    setAliasMed(med);
+    setNewAliasName("");
+    setNewAliasType("Brand");
+    setShowAliasesModal(true);
+  };
 
-    const matchesCategory = selectedCategory === "All" || m.category === selectedCategory;
-    const matchesForm = selectedDosageForm === "All" || m.dosageForm === selectedDosageForm;
+  const handleAddAliasSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!aliasMed || !newAliasName.trim()) return;
 
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "active" && m.isActive) ||
-      (statusFilter === "inactive" && !m.isActive);
+    try {
+      setAliasSubmitting(true);
+      const res = await dispatch(
+        addMedicineAlias({
+          medicineId: aliasMed.id,
+          alias: newAliasName.trim(),
+          aliasType: newAliasType,
+        })
+      ).unwrap();
 
-    return matchesSearch && matchesCategory && matchesForm && matchesStatus;
-  });
+      // Update local aliasMed state for immediate modal reflection
+      setAliasMed((prev) =>
+        prev
+          ? {
+              ...prev,
+              aliases: [...prev.aliases, res.alias],
+            }
+          : null
+      );
+
+      dispatch(
+        addNotification({
+          title: "Alias Added",
+          message: `Added alias "${newAliasName.trim()}" (${newAliasType}) to ${aliasMed.name}.`,
+          type: "success",
+        })
+      );
+      setNewAliasName("");
+    } catch (err: any) {
+      alert(err || "Failed to add alias.");
+    } finally {
+      setAliasSubmitting(false);
+    }
+  };
+
+  const handleDeleteAlias = async (aliasId: number) => {
+    if (!aliasMed) return;
+    if (!confirm("Are you sure you want to remove this alias?")) return;
+
+    try {
+      await dispatch(
+        deleteMedicineAlias({
+          medicineId: aliasMed.id,
+          aliasId,
+        })
+      ).unwrap();
+
+      setAliasMed((prev) =>
+        prev
+          ? {
+              ...prev,
+              aliases: prev.aliases.filter((a) => a.id !== aliasId),
+            }
+          : null
+      );
+
+      dispatch(
+        addNotification({
+          title: "Alias Removed",
+          message: "The medicine alias was successfully deleted.",
+          type: "info",
+        })
+      );
+    } catch (err: any) {
+      alert(err || "Failed to remove alias.");
+    }
+  };
+
+  // The backend already handles multi-tier intelligent search, aliases, and filtering.
+  const filteredMedicines = medicines;
 
   const totalCount = medicines.length;
   const activeCount = medicines.filter((m) => m.isActive).length;
@@ -391,6 +480,22 @@ export default function AdminMedicinesPage() {
                           <div className="text-[10px] text-slate-400">
                             {med.genericName ? `Generic: ${med.genericName}` : "Generic name unlisted"}
                           </div>
+
+                          {/* Aliases Tags */}
+                          {med.aliases && med.aliases.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                              {med.aliases.map((al) => (
+                                <span
+                                  key={al.id}
+                                  className="inline-flex items-center gap-1 text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded"
+                                >
+                                  <Tag size={9} className="text-amber-600" />
+                                  {al.alias}
+                                  <span className="text-[8px] text-amber-600/70 font-semibold">({al.aliasType || "Brand"})</span>
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -430,6 +535,13 @@ export default function AdminMedicinesPage() {
 
                     <td className="py-3.5 px-5 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleOpenAliasesModal(med)}
+                          className="p-1.5 hover:bg-amber-50 text-slate-400 hover:text-amber-700 rounded-lg transition-colors"
+                          title="Manage Aliases & Brand Names"
+                        >
+                          <Tag size={15} />
+                        </button>
                         <button
                           onClick={() => handleOpenEditModal(med)}
                           className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-teal-700 rounded-lg transition-colors"
@@ -991,6 +1103,149 @@ export default function AdminMedicinesPage() {
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs"
               >
                 Close Inspector
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ALIASES & BRAND NAMES MANAGER MODAL */}
+      {showAliasesModal && aliasMed && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-100 bg-teal-50/40 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center font-bold shadow-md shadow-teal-600/20">
+                  <Tag size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-800">
+                    Manage Aliases & Brand Names
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-semibold">
+                    {aliasMed.name} • {aliasMed.strength} {aliasMed.dosageForm} {aliasMed.genericName ? `(${aliasMed.genericName})` : ""}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAliasesModal(false)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-5">
+              {/* Context Description */}
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 flex items-start gap-2.5">
+                <Info size={16} className="text-teal-700 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+                  Aliases map trade brands (e.g. <em>Panadol</em>, <em>Emzor</em>), medical abbreviations (e.g. <em>PCM</em>, <em>APAP</em>), or local synonyms directly to this central canonical medicine. When patients search for any of these aliases, MediFind matches them here.
+                </p>
+              </div>
+
+              {/* Existing Registered Aliases */}
+              <div>
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2.5 flex items-center justify-between">
+                  <span>Registered Aliases ({aliasMed.aliases?.length || 0})</span>
+                </h4>
+
+                {(!aliasMed.aliases || aliasMed.aliases.length === 0) ? (
+                  <div className="p-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    <Tag size={28} className="mx-auto text-slate-300 mb-2" />
+                    <p className="text-xs font-bold text-slate-600">No alternate brand names registered yet</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Add common trade names, manufacturer brandings, or abbreviations below.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {aliasMed.aliases.map((al) => (
+                      <div
+                        key={al.id}
+                        className="p-2.5 bg-white rounded-xl border border-slate-200 shadow-xs flex items-center justify-between gap-2 hover:border-teal-200 transition-colors"
+                      >
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <Tag size={13} className="text-amber-600 shrink-0" />
+                          <div className="overflow-hidden">
+                            <span className="text-xs font-bold text-slate-800 block truncate">
+                              {al.alias}
+                            </span>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                              {al.aliasType || "Brand"}
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleDeleteAlias(al.id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
+                          title="Delete Alias"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Add New Alias Form */}
+              <form onSubmit={handleAddAliasSubmit} className="pt-4 border-t border-slate-100 space-y-3">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Add New Brand / Alias
+                </h4>
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      placeholder="e.g. Panadol Extra, PCM, Glucophage..."
+                      value={newAliasName}
+                      onChange={(e) => setNewAliasName(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-600 focus:bg-white"
+                      required
+                    />
+                  </div>
+
+                  <div className="w-full sm:w-36">
+                    <select
+                      value={newAliasType}
+                      onChange={(e) => setNewAliasType(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-600"
+                    >
+                      <option value="Brand">Brand Name</option>
+                      <option value="Abbreviation">Abbreviation / Acronym</option>
+                      <option value="CommonName">Common Name</option>
+                      <option value="LocalName">Local / Colloquial</option>
+                      <option value="Misspelling">Common Misspelling</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={aliasSubmitting || !newAliasName.trim()}
+                    className="px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-teal-600/20 transition-all shrink-0"
+                  >
+                    {aliasSubmitting ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Plus size={14} />
+                    )}
+                    Add Alias
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+              <button
+                onClick={() => setShowAliasesModal(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs shadow-sm transition-colors"
+              >
+                Done
               </button>
             </div>
           </div>
