@@ -10,6 +10,7 @@ import {
   Building2,
   LogOut,
   ShieldCheck,
+  Pill,
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -18,6 +19,7 @@ export default function Sidebar() {
 
   const navItems = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Medicine Catalogue", href: "/medicines", icon: Pill },
     { name: "User Management", href: "/users", icon: Users },
     { name: "Pharmacy Registry", href: "/pharmacies", icon: Building2 },
   ];
