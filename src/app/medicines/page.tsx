@@ -34,11 +34,15 @@ import {
   Info,
   Tag,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Upload,
+  ImageIcon,
 } from "lucide-react";
 
 export default function AdminMedicinesPage() {
   const dispatch = useAppDispatch();
-  const { items: medicines, loading, categories, dosageForms, duplicateGroups, submittingForm } = useAppSelector(
+  const { items: medicines, loading, categories, dosageForms, duplicateGroups, submittingForm, pagination } = useAppSelector(
     (state) => state.medicines
   );
 
@@ -46,6 +50,8 @@ export default function AdminMedicinesPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedDosageForm, setSelectedDosageForm] = useState("All");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
@@ -59,6 +65,9 @@ export default function AdminMedicinesPage() {
   const [newAliasName, setNewAliasName] = useState("");
   const [newAliasType, setNewAliasType] = useState("Brand");
   const [aliasSubmitting, setAliasSubmitting] = useState(false);
+
+  // Image Upload State
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -75,15 +84,58 @@ export default function AdminMedicinesPage() {
     precautions: "Do not exceed recommended daily dose.",
     side_effects: "Rare mild gastrointestinal disturbances.",
     tags: "Oral, Fast Acting, FDA Approved",
+    image_url: "",
     is_active: true,
   });
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    try {
+      const data = new FormData();
+      data.append("file", file);
+
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+      const res = await fetch(`${API_BASE_URL}/api/pharmacies/upload-medicine-image`, {
+        method: "POST",
+        body: data,
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to upload medicine image");
+      }
+
+      const json = await res.json();
+      if (json.url) {
+        setFormData((prev) => ({ ...prev, image_url: json.url }));
+        dispatch(
+          addNotification({
+            title: "Image Uploaded",
+            message: "Medicine photo uploaded successfully.",
+            type: "success",
+          })
+        );
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to upload image");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   useEffect(() => {
     dispatch(fetchMedicineMetadata());
     dispatch(fetchCatalogueDuplicates());
   }, [dispatch]);
 
-  // Debounced live backend search on query or filter changes
+  // Reset to page 1 whenever filters or search term change
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, selectedCategory, selectedDosageForm, statusFilter]);
+
+  // Debounced live backend search on query, filter, or page changes
   useEffect(() => {
     const timer = setTimeout(() => {
       dispatch(
@@ -92,12 +144,14 @@ export default function AdminMedicinesPage() {
           category: selectedCategory !== "All" ? selectedCategory : undefined,
           dosage_form: selectedDosageForm !== "All" ? selectedDosageForm : undefined,
           is_active: statusFilter === "active" ? true : statusFilter === "inactive" ? false : undefined,
+          page,
+          page_size: pageSize,
         })
       );
     }, 250);
 
     return () => clearTimeout(timer);
-  }, [dispatch, searchTerm, selectedCategory, selectedDosageForm, statusFilter]);
+  }, [dispatch, searchTerm, selectedCategory, selectedDosageForm, statusFilter, page, pageSize]);
 
   const handleOpenAddModal = () => {
     setFormData({
@@ -114,6 +168,7 @@ export default function AdminMedicinesPage() {
       precautions: "",
       side_effects: "",
       tags: "FDA Approved",
+      image_url: "",
       is_active: true,
     });
     setShowAddModal(true);
@@ -135,6 +190,7 @@ export default function AdminMedicinesPage() {
       precautions: med.precautions,
       side_effects: med.sideEffects,
       tags: med.tags,
+      image_url: med.imageUrl || "",
       is_active: med.isActive,
     });
     setShowEditModal(true);
@@ -277,10 +333,86 @@ export default function AdminMedicinesPage() {
   // The backend already handles multi-tier intelligent search, aliases, and filtering.
   const filteredMedicines = medicines;
 
-  const totalCount = medicines.length;
+  const totalCount = pagination?.totalCount || medicines.length;
+  const totalPages = pagination?.totalPages || Math.ceil(totalCount / pageSize) || 1;
   const activeCount = medicines.filter((m) => m.isActive).length;
   const inactiveCount = medicines.filter((m) => !m.isActive).length;
   const rxCount = medicines.filter((m) => m.requiresPrescription).length;
+
+  const renderPaginationButtons = () => {
+    const buttons = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, page - 2);
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    if (startPage > 1) {
+      buttons.push(
+        <button
+          key={1}
+          onClick={() => setPage(1)}
+          className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
+            page === 1
+              ? "bg-teal-600 text-white shadow-sm"
+              : "border border-slate-200 text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          1
+        </button>
+      );
+      if (startPage > 2) {
+        buttons.push(
+          <span key="dots-start" className="px-1 text-slate-400 text-xs font-bold">
+            ...
+          </span>
+        );
+      }
+    }
+
+    for (let p = startPage; p <= endPage; p++) {
+      buttons.push(
+        <button
+          key={p}
+          onClick={() => setPage(p)}
+          className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
+            page === p
+              ? "bg-teal-600 text-white shadow-sm"
+              : "border border-slate-200 text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          {p}
+        </button>
+      );
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        buttons.push(
+          <span key="dots-end" className="px-1 text-slate-400 text-xs font-bold">
+            ...
+          </span>
+        );
+      }
+      buttons.push(
+        <button
+          key={totalPages}
+          onClick={() => setPage(totalPages)}
+          className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
+            page === totalPages
+              ? "bg-teal-600 text-white shadow-sm"
+              : "border border-slate-200 text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          {totalPages}
+        </button>
+      );
+    }
+
+    return buttons;
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
@@ -465,9 +597,17 @@ export default function AdminMedicinesPage() {
                   <tr key={med.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="py-3.5 px-5">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center font-black shrink-0">
-                          {med.name.charAt(0)}
-                        </div>
+                        {med.imageUrl ? (
+                          <img
+                            src={med.imageUrl}
+                            alt={med.name}
+                            className="w-8 h-8 rounded-lg object-cover border border-slate-200 shrink-0 bg-slate-50"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center font-black shrink-0">
+                            {med.name.charAt(0)}
+                          </div>
+                        )}
                         <div>
                           <div className="font-bold text-slate-800 flex items-center gap-1.5">
                             {med.name}
@@ -566,6 +706,57 @@ export default function AdminMedicinesPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination Bar */}
+        {!loading && filteredMedicines.length > 0 && (
+          <div className="px-5 py-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50/50">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-xs text-slate-500 font-semibold">
+                Showing <span className="font-bold text-slate-800">{totalCount > 0 ? (page - 1) * pageSize + 1 : 0}</span> to{" "}
+                <span className="font-bold text-slate-800">{Math.min(page * pageSize, totalCount)}</span> of{" "}
+                <span className="font-bold text-teal-700">{totalCount}</span> medicines
+              </span>
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+                <span>Per page:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-teal-600"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 self-center sm:self-auto">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1 || loading}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-white hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronLeft size={14} /> Previous
+              </button>
+
+              <div className="flex items-center gap-1">
+                {renderPaginationButtons()}
+              </div>
+
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages || loading}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-white hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                Next <ChevronRight size={14} />
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -691,6 +882,42 @@ export default function AdminMedicinesPage() {
                       onChange={(e) => setFormData((prev) => ({ ...prev, manufacturer: e.target.value }))}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-600"
                     />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-slate-700 block mb-1 font-bold">Medicine Product Photo</label>
+                  <div className="flex items-center gap-3">
+                    {formData.image_url ? (
+                      <div className="relative w-14 h-14 rounded-xl border border-slate-200 overflow-hidden shrink-0 bg-slate-50 group">
+                        <img src={formData.image_url} alt="Preview" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setFormData((prev) => ({ ...prev, image_url: "" }))}
+                          className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold transition-opacity"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-14 h-14 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 bg-slate-50 shrink-0">
+                        <ImageIcon size={18} />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs cursor-pointer transition-colors">
+                        {uploadingImage ? <Loader2 size={13} className="animate-spin text-teal-600" /> : <Upload size={13} />}
+                        {uploadingImage ? "Uploading..." : formData.image_url ? "Change Image" : "Upload Image"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          disabled={uploadingImage}
+                        />
+                      </label>
+                      <p className="text-[10px] text-slate-400 mt-1">PNG, JPG, or WEBP photo of packaging/blister.</p>
+                    </div>
                   </div>
                 </div>
 
@@ -931,6 +1158,42 @@ export default function AdminMedicinesPage() {
                       onChange={(e) => setFormData((prev) => ({ ...prev, manufacturer: e.target.value }))}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-600"
                     />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-slate-700 block mb-1 font-bold">Medicine Product Photo</label>
+                  <div className="flex items-center gap-3">
+                    {formData.image_url ? (
+                      <div className="relative w-14 h-14 rounded-xl border border-slate-200 overflow-hidden shrink-0 bg-slate-50 group">
+                        <img src={formData.image_url} alt="Preview" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setFormData((prev) => ({ ...prev, image_url: "" }))}
+                          className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold transition-opacity"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-14 h-14 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 bg-slate-50 shrink-0">
+                        <ImageIcon size={18} />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs cursor-pointer transition-colors">
+                        {uploadingImage ? <Loader2 size={13} className="animate-spin text-teal-600" /> : <Upload size={13} />}
+                        {uploadingImage ? "Uploading..." : formData.image_url ? "Change Image" : "Upload Image"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          disabled={uploadingImage}
+                        />
+                      </label>
+                      <p className="text-[10px] text-slate-400 mt-1">PNG, JPG, or WEBP photo of packaging/blister.</p>
+                    </div>
                   </div>
                 </div>
 

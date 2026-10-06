@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
-import { apiClient } from "../apiClient";
+import { apiClient, apiClientWithMeta } from "../apiClient";
 
 export interface BackendMedicineAlias {
   id: number;
@@ -86,6 +86,14 @@ export function transformMedicine(bm: BackendMedicine): Medicine {
   };
 }
 
+export interface FetchMedicinesPayload {
+  items: Medicine[];
+  totalCount: number;
+  totalPages: number;
+  page: number;
+  pageSize: number;
+}
+
 interface MedicinesState {
   items: Medicine[];
   loading: boolean;
@@ -95,6 +103,12 @@ interface MedicinesState {
   categories: string[];
   dosageForms: string[];
   duplicateGroups: any[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+  };
 }
 
 const initialState: MedicinesState = {
@@ -106,22 +120,41 @@ const initialState: MedicinesState = {
   categories: [],
   dosageForms: [],
   duplicateGroups: [],
+  pagination: {
+    page: 1,
+    pageSize: 25,
+    totalCount: 0,
+    totalPages: 1,
+  },
 };
 
-export const fetchMedicines = createAsyncThunk(
+export const fetchMedicines = createAsyncThunk<
+  FetchMedicinesPayload,
+  { q?: string; category?: string; dosage_form?: string; is_active?: boolean; page?: number; page_size?: number; limit?: number; skip?: number } | void
+>(
   "medicines/fetchMedicines",
-  async (params: { q?: string; category?: string; dosage_form?: string; is_active?: boolean } | void, { rejectWithValue }) => {
+  async (params, { rejectWithValue }) => {
     try {
       const query = new URLSearchParams();
       if (params?.q) query.append("q", params.q);
       if (params?.category && params.category !== "All") query.append("category", params.category);
       if (params?.dosage_form && params.dosage_form !== "All") query.append("dosage_form", params.dosage_form);
       if (params?.is_active !== undefined) query.append("is_active", String(params.is_active));
-      query.append("limit", "200");
+      
+      const page = params?.page || 1;
+      const pageSize = params?.page_size || params?.limit || 25;
+      query.append("page", String(page));
+      query.append("page_size", String(pageSize));
 
       const qs = query.toString();
-      const data = await apiClient<BackendMedicine[]>(`/api/medicines/${qs ? `?${qs}` : ""}`);
-      return data.map(transformMedicine);
+      const meta = await apiClientWithMeta<BackendMedicine[]>(`/api/medicines/${qs ? `?${qs}` : ""}`);
+      return {
+        items: meta.data.map(transformMedicine),
+        totalCount: meta.totalCount,
+        totalPages: meta.totalPages,
+        page: meta.page,
+        pageSize: meta.pageSize,
+      };
     } catch (err: any) {
       return rejectWithValue(err.message || "Failed to fetch medicines catalogue");
     }
@@ -297,9 +330,15 @@ const medicinesSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchMedicines.fulfilled, (state, action: PayloadAction<Medicine[]>) => {
+      .addCase(fetchMedicines.fulfilled, (state, action: PayloadAction<FetchMedicinesPayload>) => {
         state.loading = false;
-        state.items = action.payload;
+        state.items = action.payload.items;
+        state.pagination = {
+          page: action.payload.page,
+          pageSize: action.payload.pageSize,
+          totalCount: action.payload.totalCount,
+          totalPages: action.payload.totalPages,
+        };
       })
       .addCase(fetchMedicines.rejected, (state, action) => {
         state.loading = false;
