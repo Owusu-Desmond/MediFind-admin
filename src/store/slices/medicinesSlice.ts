@@ -133,7 +133,7 @@ export const fetchMedicines = createAsyncThunk<
   { q?: string; category?: string; dosage_form?: string; is_active?: boolean; page?: number; page_size?: number; limit?: number; skip?: number } | void
 >(
   "medicines/fetchMedicines",
-  async (params, { rejectWithValue }) => {
+  async (params, { rejectWithValue, signal }) => {
     try {
       const query = new URLSearchParams();
       if (params?.q) query.append("q", params.q);
@@ -147,7 +147,7 @@ export const fetchMedicines = createAsyncThunk<
       query.append("page_size", String(pageSize));
 
       const qs = query.toString();
-      const meta = await apiClientWithMeta<BackendMedicine[]>(`/api/medicines/${qs ? `?${qs}` : ""}`);
+      const meta = await apiClientWithMeta<BackendMedicine[]>(`/api/medicines/${qs ? `?${qs}` : ""}`, { signal });
       return {
         items: meta.data.map(transformMedicine),
         totalCount: meta.totalCount,
@@ -156,6 +156,9 @@ export const fetchMedicines = createAsyncThunk<
         pageSize: meta.pageSize,
       };
     } catch (err: any) {
+      if (signal.aborted) {
+        return rejectWithValue("Cancelled");
+      }
       return rejectWithValue(err.message || "Failed to fetch medicines catalogue");
     }
   }

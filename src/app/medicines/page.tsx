@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   fetchMedicines,
@@ -135,10 +135,18 @@ export default function AdminMedicinesPage() {
     setPage(1);
   }, [searchTerm, selectedCategory, selectedDosageForm, statusFilter]);
 
-  // Debounced live backend search on query, filter, or page changes
+  const activeFetchRef = useRef<any>(null);
+
+  // Debounced live backend search on query, filter, or page changes with active request cancellation
   useEffect(() => {
+    // 1. Immediately abort any previous in-flight request when user types or changes filter
+    if (activeFetchRef.current && typeof activeFetchRef.current.abort === "function") {
+      activeFetchRef.current.abort();
+      activeFetchRef.current = null;
+    }
+
     const timer = setTimeout(() => {
-      dispatch(
+      const promise = dispatch(
         fetchMedicines({
           q: searchTerm.trim() || undefined,
           category: selectedCategory !== "All" ? selectedCategory : undefined,
@@ -148,9 +156,16 @@ export default function AdminMedicinesPage() {
           page_size: pageSize,
         })
       );
+      activeFetchRef.current = promise;
     }, 250);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (activeFetchRef.current && typeof activeFetchRef.current.abort === "function") {
+        activeFetchRef.current.abort();
+        activeFetchRef.current = null;
+      }
+    };
   }, [dispatch, searchTerm, selectedCategory, selectedDosageForm, statusFilter, page, pageSize]);
 
   const handleOpenAddModal = () => {
