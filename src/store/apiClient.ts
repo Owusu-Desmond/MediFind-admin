@@ -99,3 +99,46 @@ export async function apiClientWithMeta<T>(
   const data = (await response.json()) as T;
   return { data, totalCount, totalPages, page, pageSize };
 }
+
+export interface BackendAdminNotification {
+  id: number;
+  recipient_type: string;
+  recipient_user_id?: number;
+  recipient_pharmacy_id?: number;
+  notification_type: string;
+  title: string;
+  message: string;
+  priority?: string;
+  reference_type?: string;
+  reference_id?: string;
+  action_url?: string;
+  is_read: boolean;
+  read_at?: string;
+  created_at: string;
+}
+
+export interface AdminNotificationListResponse {
+  total: number;
+  unread_count: number;
+  items: BackendAdminNotification[];
+}
+
+export async function getAdminNotifications(unreadOnly = false, limit = 50): Promise<AdminNotificationListResponse> {
+  const params = new URLSearchParams();
+  if (unreadOnly) params.append("unread_only", "true");
+  params.append("limit", limit.toString());
+  return apiClient<AdminNotificationListResponse>(`/notifications?${params.toString()}`);
+}
+
+export async function markAdminNotificationRead(id: number): Promise<BackendAdminNotification> {
+  return apiClient<BackendAdminNotification>(`/notifications/${id}/read`, {
+    method: "PATCH",
+  });
+}
+
+export async function markAllAdminNotificationsRead(): Promise<{ success: boolean; message: string; marked_count: number }> {
+  return apiClient<{ success: boolean; message: string; marked_count: number }>("/notifications/mark-all-read", {
+    method: "POST",
+  });
+}
+
