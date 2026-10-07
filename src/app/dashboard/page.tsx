@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { approvePharmacy, suspendPharmacy } from "@/store/slices/pharmaciesSlice";
 import { addNotification } from "@/store/slices/notificationsSlice";
+import AdminNotificationPermissionBanner from "@/components/NotificationPermissionBanner";
 import {
   Building2,
   Users,
@@ -85,6 +86,9 @@ export default function AdminDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Real Desktop Push Notification Banner */}
+      <AdminNotificationPermissionBanner />
 
       {/* Stats cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
